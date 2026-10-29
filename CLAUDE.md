@@ -37,7 +37,7 @@ bun run preview    # serve dist/ → http://localhost:4427
 bun test           # all tests (they gate the deploy)
 bun run sim        # economy pacing simulation: [--v1] [--until=180] [--key=value] (docs/economy.md §7)
 bun scripts/species-from-md.js            # regenerate src/data/species.js after editing docs/species.md
-bun scripts/screenshot.js <url> <out.png> # headless-Chrome screenshot (port 9438); WIDTH, HEIGHT, WAIT env vars
+bun scripts/screenshot.js <url> <out.png> # headless-Chrome screenshot (port 9438, CDP_PORT overrides); WIDTH, HEIGHT, WAIT env vars
 ```
 
 Not yet: `bun run build:app` (Capacitor, `mobile/`), the service worker, analytics, saves.
@@ -51,6 +51,10 @@ Not yet: `bun run build:app` (Capacitor, `mobile/`), the service worker, analyti
   (one adult), `zoom=2`, `still=1` (frozen pose with open eyes: headless Chrome renders slowly, so without it a
   screenshot can catch a blink). `bun scripts/screenshot.js` takes `EVAL='expr'` to print page state.
   Keys: 1–4 pose, ←/→ body plan, 0 overview, U same size, F faceted, B babies, R turntable, Q quality, H panel.
+- `/mockups/single-mesh/` (`src/mockups/single-mesh.*`): **experiment**: single-mesh animals (lion, plains zebra,
+  reticulated giraffe, asian elephant) next to the current builder. URL params: `species=<id>|all`,
+  `view=game|side|front`, `pose=`, `builder=both|old|new`, `quality=`, `sex=`, `babies=0`, `zoom=`, `wire=1`,
+  `seeds=4` (individuals with different coats), `still=1`, `ui=0`. Report: `docs/experiments/single-mesh-opus-low.md`.
 
 ## Key files
 
@@ -68,6 +72,12 @@ Not yet: `bun run build:app` (Capacitor, `mobile/`), the service worker, analyti
   stay crisp. Bodies are deformed spheres (`torso`, `egg` in `shapes.js`) with poles at front and back, so
   patterns interpolate cleanly over the back. Animating resets the rig's parts to rest every frame and never touches the
   animal's own position, rotation or scale.
+- `src/scene/animals/mesh/` (experiment): one skinned mesh per animal. `buildAnimal(id, { sex, age, seed, detail,
+  cache })` and `animate(rig, pose, t, opts)` as above. A code-built quad cage (`cage.js`: lofted spine tube, limbs
+  extruded from its faces; profiles per plan in `quadruped.js`) is Catmull-Clark subdivided to its limit surface
+  (`subdivide.js`); skin weights and coat channels ride the same stencils. The shared material (`material.js`) paints
+  stripes, patches, spots and markings per pixel; the individual's seed travels in bone 0 of the skeleton, so
+  geometry is shared per species, sex, age and detail. Species extras in `mesh/looks.js`.
 - `src/scene/backdrop.js`: sky dome, warm sun + hemisphere light, seeded meadow with trees and rocks.
 - `src/engine/renderer.js`: WebGL renderer with quality tiers, clamped dt, context-loss rebuild, background pause,
   and `step(frames)` for driving it by hand. `src/engine/platform.js`: runtime platform questions.

@@ -4,7 +4,8 @@
 //   WIDTH=1600 HEIGHT=1000 WAIT=4000 bun scripts/screenshot.js http://localhost:5427/mockups/body-plans/ shot.png
 //   EVAL='__mockup.state' bun scripts/screenshot.js ...   (prints the expression's value, as JSON, before each capture)
 //
-// Uses debugging port 9438 (CLAUDE.md: the port for agents and tools) and stops the Chrome it started.
+// Uses debugging port 9438 (CLAUDE.md: the port for agents and tools; CDP_PORT overrides it) and stops the Chrome it
+// started.
 
 import { spawn } from 'node:child_process';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
@@ -12,7 +13,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const CHROME = process.env.CHROME ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const PORT = 9438;
+const PORT = Number(process.env.CDP_PORT ?? 9438);
 const W = Number(process.env.WIDTH ?? 1600);
 const H = Number(process.env.HEIGHT ?? 1000);
 const WAIT = Number(process.env.WAIT ?? 4000);

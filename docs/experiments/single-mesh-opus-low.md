@@ -1,0 +1,238 @@
+# Experiment: single-mesh animals (opus, low effort)
+
+Branch `feature/single-mesh-animals-opus-low`, worktree `../PawprintPark-exp-opus-low`. Code in
+`src/scene/animals/mesh/`, mockup at `/mockups/single-mesh/`, tests in `tests/meshAnimals.test.js`. The existing
+builder is unchanged.
+
+Note on the branch: `develop` only holds the initial commit, and the rest of the project is untracked in the main
+checkout. So the first commit on this branch is a snapshot of that working tree (the baseline), and the experiment
+is the commit after it. Diff the two commits to see only the experiment.
+
+## Approach: a code-built quad cage, Catmull-Clark subdivided, skinned
+
+Each animal is built the way a box modeller would build it, but in code:
+
+1. **Spine tube.** A lofted tube of 8-vertex rings runs from the rump through the chest, neck and head to the nose,
+   and on along the trunk for the elephant. Ring profiles per body plan (`TORSO_RINGS`, `HEADS` in `quadruped.js`)
+   come from the existing look sizes (`looks.js`: body, neck, head and snout radii).
+2. **Extrusions.** Legs, tail, ears, ossicones and tusks are extruded from quad faces of that tube, so they grow out
+   of the surface with no seam. Legs follow per-plan profiles: hoof, cat (with paws) and pachy, with shoulder,
+   elbow or stifle, knee or hock, fetlock and hoof rings. Manes are bulges of the neck and head rings. A zebra or
+   giraffe crest is a raised top vertex on the neck rings.
+3. **Catmull-Clark subdivision** (`subdivide.js`), then projection to the **limit surface**. Two levels on high; one
+   level over a denser cage on medium and low. Because every tier is projected to the same limit surface, the tiers
+   differ only in tessellation, not in shape.
+4. **Everything rides the subdivision.** Each cage vertex carries a data vector: position, one weight per bone, and
+   named channels:
+   - `S`: the stripe coordinate along the spine, down the legs and along the tail;
+   - `UNDER`: belly side;
+   - `SNOUT`: distance from the nose;
+   - `TAIL`: distance from the tail tip;
+   - `MANE`, `RIDGE`, `EAR`, `TIP`, `TUSK`, `LEG`;
+   - `PS`: local pattern scale.
+
+   The same affine stencils apply to all of them. Skin weights therefore stay normalised and blend smoothly across
+   every joint, with no separate weight-painting step. The coat fields are continuous over the whole surface by
+   construction.
+5. **Eyes** are closed islands in the same mesh, weighted to an `eyes` bone that scales to blink and sleep. They are
+   placed after subdivision, on the head's limit surface, at the support point in the eye's facing direction.
+6. **Skinning.** `THREE.SkinnedMesh` with a ~27-bone skeleton:
+   - spine: hips → chest → two neck bones → head;
+   - eyes and ears;
+   - three tail bones and three trunk bones;
+   - three bones per leg.
+
+   `animate()` resets every bone to rest each frame and never touches the group.
+
+### Why this approach and not the others
+
+- **SDF + surface nets / marching cubes.** A uniform grid fits badly with giraffe legs (6 cm radius on a 4.5 m tall
+  animal). Resolving them needs about 300k cells, and the triangle count follows surface area, not the budget. There
+  is also no natural parametrisation for stripes and no good place for skin weights. Decimation in pure JS is slow.
+- **Lofting alone** fails where branches meet the body, which is the hard part. The cage with extrusions *is* a
+  loft, plus a clean way to branch.
+- **Subdivision of a cage** controls the triangle count exactly: cage quads × 4^levels. Topology is clean quads. Skin
+  weights and coat coordinates come for free through the stencils. It is also how stylised toy animals are usually
+  box-modelled by hand.
+
+### Texturing: a procedural texture evaluated per pixel, no texture memory
+
+I chose not to bake a `DataTexture`, for three reasons:
+
+- A baked colour texture blurs in close-ups. It would have to be an SDF texture to stay crisp.
+- It needs a UV unwrap with seams.
+- The pattern must vary per individual while geometry is cached per species, sex and age, so a baked texture would
+  be per individual (about 64–256 KB each × 150 animals).
+
+Instead, the shared material (`material.js`) paints per pixel:
+
+- **Stripes:** `S` × frequency, with 3D value-noise wobble and width variation, and an edge one pixel wide
+  (`fwidth`). Because `S` is a scalar field on one connected surface, stripes cannot meet a seam. They wrap the
+  body, ring the neck and legs, and bend smoothly at the haunches.
+- **Patches (giraffe):** the existing 3D cellular net, evaluated on the rest-pose `position`, with `PS` making cells
+  smaller on the neck, head and legs.
+- **Spots (lion cub):** the existing spot field.
+- **Markings:** hooves, muzzle, nose, belly, mane, tail tuft, crest, ear insides, ossicone tips, tusks and eyes. Each
+  is a signed field over position and channels (in metres where possible). The union's edge is drawn per pixel.
+- **Per-individual seed.** Bone 0 of every skeleton is a *seed bone* that no vertex is weighted to. Its offset is
+  read in the vertex shader from the bone texture that three.js already uploads per skinned mesh. Result: one
+  material, no per-object uniforms (which three.js won't re-upload for a shared `MeshStandardMaterial`), and
+  geometry shared between individuals (`buildAnimal(id, { seed, cache: true })`).
+
+## Results
+
+### Metrics
+
+Measured with Bun on macOS (x64). Build times are medians of 7 warm runs and include subdivision, eyes and paint.
+
+**Single mesh**
+
+| species, variant | tier | triangles | build ms | geometry KB | draw calls |
+|---|---|---:|---:|---:|---:|
+| lion ♂ | high / med / low | 13,056 / 7,968 / 5,696 | 29 / 18 / 12 | 517 / 316 / 226 | 1 |
+| lion ♀ | high / med / low | 12,544 / 7,648 / 5,504 | 26 / 22 / 12 | 497 / 303 / 218 | 1 |
+| lion cub | high / med / low | 12,544 / 7,712 / 5,504 | 27 / 20 / 14 | 497 / 306 / 218 | 1 |
+| plains zebra | high / med / low | 12,928 / 7,360 / 5,184 | 43 / 25 / 18 | 512 / 292 / 206 | 1 |
+| zebra foal | high / med / low | 13,184 / 7,488 / 5,248 | 43 / 24 / 13 | 522 / 297 / 208 | 1 |
+| reticulated giraffe | high / med / low | 14,208 / 7,456 / 5,504 | 36 / 24 / 18 | 563 / 296 / 218 | 1 |
+| asian elephant ♂ (stretch) | high / med / low | 14,208 / 7,904 / 5,664 | 32 / 22 / 13 | 563 / 313 / 225 | 1 |
+| asian elephant ♀ | high / med / low | 13,440 / 7,776 / 5,472 | 28 / 18 / 13 | 532 / 308 / 217 | 1 |
+| elephant calf | high / med / low | 13,696 / 7,840 / 5,664 | 27 / 17 / 12 | 542 / 311 / 225 | 1 |
+
+**Current builder**
+
+| species | tier | triangles | build ms | geometry KB | draw calls |
+|---|---|---:|---:|---:|---:|
+| lion ♂ | high / med / low | 29,508 / 18,160 / 10,072 | 30 / 20 / 16 | 1,569 / 1,010 / 601 | 9 |
+| zebra | high / med / low | 19,260 / 12,360 / 7,150 | 22 / 15 / 8 | 1,030 / 693 / 433 | 9 |
+| giraffe | high / med / low | 26,616 / 17,020 / 9,916 | 24 / 19 / 10 | 1,393 / 928 / 577 | 9 |
+| elephant ♂ | high / med / low | 18,240 / 11,716 / 6,880 | 32 / 14 / 8 | 1,009 / 685 / 438 | 10 |
+
+- **Budgets** (aim 15k / 10k / 6k): high is 12.5–14.2k, medium 7.4–8.0k, low 5.2–5.7k. All are under; the tests
+  enforce 15.5k / 10.5k / 6.5k.
+- **Build time:** 12–43 ms per variant, well under 100 ms and about the same as the current builder. Geometry is
+  seed-independent, so the cache per species, sex and age works as intended.
+- **Texture memory:** 0 bytes, with no textures at all. The coat lives in per-vertex attributes. Of the 69 bytes per
+  vertex, 33 are paint: 3 × RGB8 colours, a float marking field, a float stripe coordinate, and a vec4 pattern
+  parameter. A high-tier zebra has 6.5k vertices, so about 210 KB of paint. The vec4 pattern parameter (16 B/vertex)
+  is constant per species and could move into the seed bone's unused matrix entries, saving another ~100 KB per
+  variant.
+- **Draw calls:** 1 per animal (eyes included), down from 9–10. With shadows on, that is 2 including the shadow
+  pass, down from 18–20.
+
+### Screenshots
+
+All in `docs/experiments/shots/opus-low/`. In every comparison image the current builder is left of each pair and
+the single mesh is on the right.
+
+| | side | front | in-game ¾ | walk |
+|---|---|---|---|---|
+| lion (♂, ♀, cub) | `lion-side.png` | `lion-front.png` | `lion-game.png` | `lion-walk.png` |
+| plains zebra (adult, foal) | `plains-zebra-side.png` | `plains-zebra-front.png` | `plains-zebra-game.png` | `plains-zebra-walk.png`, `plains-zebra-walk-game.png` |
+| reticulated giraffe | `reticulated-giraffe-side.png` | `reticulated-giraffe-front.png` | `reticulated-giraffe-game.png` | `reticulated-giraffe-walk.png` |
+| asian elephant (stretch) | `asian-elephant-side.png` | `asian-elephant-front.png` | `asian-elephant-game.png` | `asian-elephant-walk.png` |
+
+Extras:
+
+- `reticulated-giraffe-eat.png`, `lion-sleep.png`: deformation in other poses;
+- `zebra-closeup.png`, `giraffe-closeup.png`: pattern crispness and continuity across neck, body and legs;
+- `zebra-seeds.png`, `giraffe-seeds.png`: four zebras and three giraffes, one shared geometry, different seeds;
+- `zebra-wire-high.png`, `zebra-wire-low.png`: topology;
+- `zebra-game-low.png`, `zebra-game-medium.png`: the lower tiers;
+- `all-game.png`: everything together.
+
+To reproduce: `PORT=5428 bun run dev`, then
+
+```
+bun scripts/screenshot.js 'http://localhost:5428/mockups/single-mesh/?species=plains-zebra&view=side&still=1&ui=0&quality=high' out.png
+```
+
+The page also takes `pose=`, `builder=old|new`, `wire=1`, `seeds=4` and `zoom=2`. `CDP_PORT` overrides the
+debugging port.
+
+## Side-by-side: an honest comparison
+
+### Clearly better
+
+- **Side profile and silhouette.** Legs flow out of the body through a real shoulder and haunch, and taper through
+  elbow, knee, cannon, fetlock and a flared hoof. There are no tubes or kinks at the joints. The neck grows out of
+  the withers and chest, and the giraffe and zebra read as one body (`*-side.png`). This was the main complaint
+  about the current builder, and it is fixed.
+- **Deformation.** Joints bend with smooth skinning: knees fold in the walk (`plains-zebra-walk.png`), and the
+  giraffe's neck curves in an arc when eating instead of rotating as a straight tube (`reticulated-giraffe-eat.png`).
+  The current builder can only rotate rigid segments.
+- **Pattern continuity.**
+  - Zebra stripes wrap the body, ring the neck and legs, and bend continuously at the haunch and shoulder
+    (`zebra-closeup.png`).
+  - The giraffe net continues from the chest up the neck and down the legs, with smaller patches on the neck and
+    legs, then the cream lower legs and dark hooves (`giraffe-closeup.png`).
+  - Edges stay crisp at every zoom (per pixel, `fwidth`).
+- **Cost.** One draw call instead of 9–10. On high, 22–56% fewer triangles (elephant to lion) and 44–67% less
+  geometry memory, with no texture memory. Per-individual coats share one geometry.
+- **Hooves:** dark, flared and distinct, with a crisp edge on a dense crease ring.
+
+### Worse or unfinished
+
+- **Faces.** The current builder's faces are cuter: big round eyes on a round head facing the camera. Mine:
+  - hoofed heads are long and point down from the front, and the eyes sit on the sides (`plains-zebra-front.png`,
+    `reticulated-giraffe-front.png`);
+  - the lioness's head reads a little dog-like;
+  - the nose is a plain marking patch, not a shape.
+
+  This is tuning (`HEADS` profiles, eye placement), not a limit of the approach, but it isn't done.
+- **The male lion's mane** reads as a hood or collar from the side (`lion-side.png`, `lion-game.png`). Alternating
+  ring vertices give only soft lobes. The current builder's ball of tufts reads more like a mane. Better fix: tufts
+  as skinned blob islands in the same mesh (as the eyes are). That keeps one draw call.
+- **Medium and low tiers** use one subdivision level. Legs become 8-sided and the body 16-sided, which shows in
+  silhouettes at close range (`zebra-game-low.png`). A better scheme: two levels on legs and head only, and one on
+  the torso. That needs crack-free mixed-level subdivision (doable: subdivide everything once, then refine a region
+  and stitch).
+- **Close-ups:**
+  - stripe edges follow a piecewise-linear field, so they show slight polygonal kinks at extreme zoom;
+  - edges *between two markings* (hoof vs cream leg) are only as sharp as the mesh, so they need dense rings;
+  - a thin mane crest stripe ends abruptly at the withers.
+- **Small parts:**
+  - giraffe ossicones are short;
+  - the elephant has no domed forehead, smaller ears than the current builder's discs, and no toenails;
+  - lion paws are smooth mittens with no toes.
+
+  These are all one more extrusion or ring each.
+- **Authoring cost.** New shapes mean planning topology: which face a feature grows from, and `hold` flags so
+  resampling keeps those faces. Catmull-Clark also shrinks everything, so profiles take a few visual iterations
+  each. The current builder's "place another ellipsoid" is easier to author.
+- **Skinning limits.** Linear blend skinning pinches at extreme rotations (sleep folds the forelegs about 2.3 rad).
+  At these angles it is acceptable, but dual-quaternion skinning or helper bones would be needed for tighter folds.
+- **The seed-bone trick** depends on three.js reading the bone matrices from a texture in the vertex shader. That's
+  true for WebGL today. A WebGPU or TSL port would need an equivalent, such as an instanced attribute or a node
+  uniform.
+
+## Recommendation: adopt, with changes
+
+Adopt the single-mesh skinned approach for the four-legged plans. It fixes what it was meant to fix: profile, joints
+and continuity. It also deforms properly, and it costs a fraction of the draw calls and memory. The remaining
+weaknesses are art tuning, not architecture. Changes before rollout:
+
+1. **Faces first.** Rounder crania, shorter muzzles, bigger and more frontal eyes, and an optional eyelid instead of
+   eye squash. Nose as a small extruded bump. Approve on the mockup (CLAUDE.md: visuals before systems).
+2. **Tufts as islands.** Manes, tail tufts and wool are skinned blob islands in the same mesh, which beats lofted
+   bulges.
+3. **Mixed-level subdivision** for medium and low: two levels on legs and head, one on the torso.
+4. **Move per-species constants** (`pat`) out of the vertex data, into the seed bone or a tiny per-species palette.
+5. **Cache templates** per species, sex, age and tier (already supported: `cache: true`). Instantiate individuals by
+   cloning the skeleton only. Cheap stand-ins (PRD §17.1) can reuse the low-tier geometry unskinned.
+
+### What a rollout to all 12 body plans would take
+
+Estimates assume the current cadence: build, then screenshot-driven tuning.
+
+| plans | work | estimate |
+|---|---|---|
+| hoof, cat, pachy (done here) | Faces, mane islands; per-species extras: horns and antlers (extrusions with tines), warthog tusks, sheep wool (islands), goat beard. | 3–4 days |
+| dog, bear, small | New `TORSO_RINGS`, `LEGS`, `HEADS` profiles (paws exist). Meerkat stance and rabbit hop are pose work. Red panda ringed tail is a channel. | 3–4 days |
+| bird-walk, bird-perch, penguin | New cage generator: egg body with neck and head tube, beak extrusion, wing flaps extruded from the flanks, thin legs and toes extruded down (or stick legs as islands). Feather colouring via markings. | 4–5 days |
+| pinniped | Spine tube with fore- and hind-flipper extrusions. Close to the quadruped code. | 1–2 days |
+| lizard, turtle | Lizard: a long spine tube with sideways legs, a natural fit. Turtle: a shell island (rigid, weighted to the body) plus head, neck and legs extruded from a body tube. | 3 days |
+| Shared | Mixed-level subdivision, template cache, LOD stand-ins, tests per plan, replacing `src/scene/animals/index.js` behind the same API, retiring the old builder. | 3–4 days |
+
+**Total: about 3–4 weeks** for parity across all 30 v1 species, with art direction approved on the mockup per plan.
+The engine part (cage, subdivision, skinning, material, tests) is done; the cost is in profiles and visual tuning.
