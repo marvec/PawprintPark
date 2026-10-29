@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <title>Pawprint Park</title>
+  <!-- A panda paw: dark pads on a warm cream tile. -->
+  <rect width="512" height="512" rx="112" fill="#f6ead2"/>
+  <circle cx="256" cy="256" r="196" fill="#fff8ec"/>
+  <g fill="#1c1a19">
+    <path d="M256 236c-58 0-118 52-118 104 0 38 30 58 62 58 22 0 36-10 56-10s34 10 56 10c32 0 62-20 62-58 0-52-60-104-118-104z"/>
+    <ellipse cx="150" cy="210" rx="34" ry="44" transform="rotate(-24 150 210)"/>
+    <ellipse cx="214" cy="150" rx="36" ry="48" transform="rotate(-8 214 150)"/>
+    <ellipse cx="298" cy="150" rx="36" ry="48" transform="rotate(8 298 150)"/>
+    <ellipse cx="362" cy="210" rx="34" ry="44" transform="rotate(24 362 210)"/>
+  </g>
+</svg>

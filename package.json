@@ -1,0 +1,17 @@
+{
+  "name": "pawprint-park",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A zoo builder and management game built in code with Three.js.",
+  "type": "module",
+  "scripts": {
+    "dev": "bun --hot server.js",
+    "build": "bun scripts/build.js",
+    "preview": "bun scripts/preview.js",
+    "test": "bun test",
+    "sim": "bun scripts/economy-sim.js"
+  },
+  "dependencies": {
+    "three": "0.186.1"
+  }
+}

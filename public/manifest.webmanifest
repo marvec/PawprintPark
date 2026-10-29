@@ -1,0 +1,17 @@
+{
+  "id": "./",
+  "name": "Pawprint Park",
+  "short_name": "Pawprint Park",
+  "description": "Build and run your own zoo. Care for animals and learn real animal facts.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "any",
+  "background_color": "#f1dfc0",
+  "theme_color": "#f1dfc0",
+  "icons": [
+    { "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

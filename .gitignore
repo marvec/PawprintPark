@@ -10,3 +10,8 @@ Thumbs.db
 # Env
 .env
 .env.*
+
+# Dependencies and build output
+node_modules/
+dist/
+mobile/www/
