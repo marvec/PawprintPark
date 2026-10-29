@@ -4,11 +4,13 @@
 // Pure: no three.js.
 
 /** Channels carried through subdivision (after the position and the bone weights). */
-export const CHANNELS = ['S', 'UNDER', 'SNOUT', 'TAIL', 'MANE', 'RIDGE', 'EAR', 'TIP', 'EYE', 'GLINT', 'TUSK', 'LEG', 'PS'];
+// FUR: 0 at the root of a hair mass (mane, ruff) to 1 at its tips. BEAK, WING, SHELL: signed part fields (positive
+// on the part). AUX: a free signed field a builder can use for one species-specific marking.
+export const CHANNELS = ['S', 'UNDER', 'SNOUT', 'TAIL', 'MANE', 'RIDGE', 'EAR', 'TIP', 'EYE', 'GLINT', 'TUSK', 'LEG', 'PS', 'FUR', 'BEAK', 'WING', 'SHELL', 'AUX', 'NOSE'];
 /** Value for "far from this feature" in distance-like channels (metres). */
 export const FAR = 4;
 
-const DEFAULTS = { S: 0, UNDER: 0, SNOUT: FAR, TAIL: FAR, MANE: -1, RIDGE: -3, EAR: -1, TIP: FAR, EYE: -1, GLINT: -1, TUSK: -1, LEG: -1, PS: 1 };
+const DEFAULTS = { S: 0, UNDER: 0, SNOUT: FAR, TAIL: FAR, MANE: -1, RIDGE: -3, EAR: -1, TIP: FAR, EYE: -1, GLINT: -1, TUSK: -1, LEG: -1, PS: 1, FUR: -1, BEAK: -1, WING: -1, SHELL: -1, AUX: -1, NOSE: -1 };
 
 export const v3 = {
   add: (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]],

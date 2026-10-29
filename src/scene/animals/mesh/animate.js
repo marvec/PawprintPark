@@ -1,5 +1,11 @@
 // Poses for single-mesh animals: every frame the bones go back to rest and the pose is applied on top, so nothing
-// drifts. The animal's own group is never touched. Pure: the caller passes the time in seconds.
+// drifts. The animal's own group is never touched. Pure: the caller passes the time in seconds. Each animation family
+// (rig.kind, from the cage builder's info.kind) has its own function: quadrupeds here, the others in their files.
+
+import { animateBird } from './animate-bird.js';
+import { animatePinniped } from './animate-pinniped.js';
+import { animateLizard, animateTurtle } from './animate-reptile.js';
+import { blink } from './blink.js';
 
 export const POSES = ['idle', 'walk', 'eat', 'sleep'];
 
@@ -14,26 +20,30 @@ function reset(rest) {
   }
 }
 
-/** Eyes close briefly every few seconds, and stay shut while sleeping. */
-function blink(r, t, closed) {
-  const p = t % 4.3;
-  r.bones.eyes.scale.y = closed ? 0.06 : p < 0.14 ? 0.1 : 1;
-}
+/** Family → pose function (rig, pose, t with the rig's phase, amplitude). */
+const FAMILIES = {
+  'mesh-quad': quad,
+  'mesh-bird': animateBird,
+  'mesh-pinniped': animatePinniped,
+  'mesh-lizard': animateLizard,
+  'mesh-turtle': animateTurtle,
+};
 
-/**
- * Poses a rig.
- * @param {object} rig  from buildAnimal
- * @param {'idle'|'walk'|'eat'|'sleep'} pose
- * @param {number} t  time in seconds
- * @param {{ reduced?: boolean, blink?: boolean }} [opts]  reduced motion; blink: false keeps the eyes open (not asleep)
- */
 export function animate(rig, pose, t, opts = {}) {
   reset(rig.rest);
   const tt = t + (rig.phase ?? 0);
   const amp = opts.reduced ? 0.4 : 1;
+  (FAMILIES[rig.kind] ?? quad)(rig, pose, tt, amp);
+  if (opts.blink === false && pose !== 'sleep') rig.bones.eyes.scale.y = 1;
+}
+
+/** Quadrupeds: hoofed animals, cats, dogs, bears, small mammals, elephants and tapirs. */
+function quad(rig, pose, tt, amp) {
   const B = rig.bones;
   const { legLen, bodyH } = rig.size;
-  const cat = rig.plan === 'cat';
+  // Cats, dogs, bears and small mammals lie down like cats; hoofed animals and elephants fold their legs under.
+  const cat = rig.plan === 'cat' || rig.plan === 'dog' || rig.plan === 'bear' || rig.plan === 'small';
+  const info = rig.info ?? {};
   const f = 7 / (1 + legLen * 3.2);
   const tailSway = (k, speed) => {
     B.tail0.rotation.y += sin(tt * speed) * k * 0.5 * amp;
@@ -60,6 +70,38 @@ export function animate(rig, pose, t, opts = {}) {
     tailSway(0.25, 2.6);
     trunk(0.12 * amp);
     ears(amp);
+    blink(rig, tt);
+    if (info.stance === 'upright') {
+      // Meerkat sentry: sit up on the haunches, forepaws dangling, tail flat on the ground behind.
+      const up = 1.15;
+      B.hips.rotation.x -= up;
+      B.hips.position.y -= legLen * 0.45;
+      B.neck0.rotation.x += up * 0.75;
+      B.neck1.rotation.x += up * 0.2;
+      for (const l of rig.legs) {
+        if (l.front) {
+          l.upper.rotation.x = 0.7;
+          l.lower.rotation.x = 0.9;
+        } else {
+          l.upper.rotation.x = up - 0.6;
+          l.lower.rotation.x = -0.3;
+          l.foot.rotation.x = 0.9;
+        }
+      }
+      B.tail0.rotation.x += up * 0.9;
+      B.tail1.rotation.x -= 0.25;
+    }
+  } else if (pose === 'walk' && info.gait === 'hop') {
+    // Rabbits hop: both hind legs push off together, the forelegs reach forward, the body arcs.
+    const ph = tt * f * 0.8;
+    const s = Math.max(0, sin(ph));
+    B.hips.position.y += s * bodyH * 0.7 * amp;
+    B.hips.rotation.x = -s * 0.2 * amp;
+    for (const l of rig.legs) {
+      l.upper.rotation.x = (l.front ? -0.7 : 0.6) * s * amp;
+      if (!l.front) l.foot.rotation.x = 0.5 * s * amp;
+    }
+    B.neck0.rotation.x += s * 0.15 * amp;
     blink(rig, tt);
   } else if (pose === 'walk') {
     const ph = tt * f;
@@ -125,5 +167,4 @@ export function animate(rig, pose, t, opts = {}) {
     trunk(0.05, -0.3);
     blink(rig, tt, true);
   }
-  if (opts.blink === false && pose !== 'sleep') B.eyes.scale.y = 1;
 }

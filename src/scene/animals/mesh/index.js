@@ -6,24 +6,47 @@
 
 import * as THREE from 'three';
 import { hashString } from '../../../core/rng.js';
-import { mergeLook, resolveLook } from '../index.js';
+import { LOOKS, mergeLook, resolveLook } from '../index.js';
 import { CHANNELS, Cage, v3 } from './cage.js';
-import { MESH_LOOKS } from './looks.js';
+import { MESH_LOOKS, MESH_PLAN_DEFAULTS } from './looks.js';
 import { createMeshAnimalMaterial } from './material.js';
 import { PAT_NONE } from './material.js';
+import { buildBirdCage } from './bird.js';
+import { buildPinnipedCage } from './pinniped.js';
 import { buildQuadCage } from './quadruped.js';
+import { buildLizardCage, buildTurtleCage } from './reptile.js';
 import { subdivide, toLimit } from './subdivide.js';
 
 export { animate, POSES } from './animate.js';
 export { createMeshAnimalMaterial } from './material.js';
 export { MESH_LOOKS, MESH_SPECIES } from './looks.js';
 
+/**
+ * Cage builders per body plan: (look, meshLook, detail settings) → { cage, joints, parents, eyes, info }.
+ * info.kind picks the animation family (animate.js); info.legs lists the legs ({ name, front, side }) whose bones are
+ * upper<name>, lower<name>, foot<name>.
+ */
+const BUILDERS = {
+  hoof: buildQuadCage,
+  cat: buildQuadCage,
+  dog: buildQuadCage,
+  bear: buildQuadCage,
+  small: buildQuadCage,
+  pachy: buildQuadCage,
+  'bird-walk': buildBirdCage,
+  'bird-perch': buildBirdCage,
+  penguin: buildBirdCage,
+  pinniped: buildPinnipedCage,
+  lizard: buildLizardCage,
+  turtle: buildTurtleCage,
+};
+
 /** Resolves the single-mesh extras for a sex and age (same override scheme as the species looks). */
 export function resolveMeshLook(id, { sex = 'female', age = 'adult' } = {}) {
   const base = MESH_LOOKS[id];
   if (!base) throw new Error(`No single-mesh look for species "${id}"`);
   const { male, female, baby, ...rest } = base;
-  let M = mergeLook(rest, sex === 'male' ? male : female);
+  let M = mergeLook(mergeLook(MESH_PLAN_DEFAULTS[LOOKS[id]?.plan] ?? {}, rest), sex === 'male' ? male : female);
   if (age === 'baby') {
     // Babies: no mane, bigger ears (as resolveLook does for the species looks).
     M = mergeLook({ ...M, mane: undefined }, baby);
@@ -37,11 +60,15 @@ export function resolveMeshLook(id, { sex = 'female', age = 'adult' } = {}) {
  * a lion cub get about the same triangle count.
  */
 export function detailSettings(look, detail = 1) {
-  const size = look.body.l + look.legs.len * 0.5 + look.neck.len * 0.5;
-  if (detail >= 0.9) return { levels: 2, step: size * 0.13, legStep: look.legs.len * 0.22 };
-  if (detail >= 0.7) return { levels: 1, step: size * 0.034, legStep: look.legs.len * 0.042 };
+  const bodyL = look.body?.l ?? look.shell?.rz ?? 0.3;
+  const legLen = look.legs?.len ?? bodyL * 0.4;
+  const size = bodyL + legLen * 0.5 + (look.neck?.len ?? 0) * 0.5;
+  // `size` and `detail` let builders scale their own densities (loops of a mane, feathers, shell rows).
+  if (detail >= 0.9) return { levels: 2, step: size * 0.13, legStep: legLen * 0.22, size, detail };
+  // Short-legged animals (otters) would get very dense legs and tails; the floor keeps them in budget.
+  if (detail >= 0.7) return { levels: 1, step: size * 0.034, legStep: Math.max(legLen * 0.042, size * 0.022), size, detail };
   // Low: one subdivision step over a denser cage (moved to the limit surface, so the shape matches).
-  return { levels: 1, step: size * 0.055, legStep: look.legs.len * 0.07 };
+  return { levels: 1, step: size * 0.055, legStep: Math.max(legLen * 0.07, size * 0.036), size, detail };
 }
 
 const hex = (c) => [(c >> 16) & 255, (c >> 8) & 255, c & 255];
@@ -55,7 +82,9 @@ export function buildTemplate(id, { sex = 'female', age = 'adult', detail = 1 } 
   const look = resolveLook(id, { sex, age });
   const M = resolveMeshLook(id, { sex, age });
   const settings = detailSettings(look, detail);
-  const { cage, joints, parents, info, eyes } = buildQuadCage(look, M, settings);
+  const build = BUILDERS[look.plan];
+  if (!build) throw new Error(`No single-mesh builder for body plan "${look.plan}"`);
+  const { cage, joints, parents, info, eyes } = build(look, M, settings);
   let poly = cage.poly();
   let cageFaces = poly.faces.length;
   for (let i = 0; i < settings.levels; i++) poly = subdivide(poly);
@@ -65,7 +94,7 @@ export function buildTemplate(id, { sex = 'female', age = 'adult', detail = 1 } 
   let eyePoly = eyeCage.poly();
   for (let i = 0; i < settings.levels; i++) eyePoly = subdivide(eyePoly);
   poly = append(poly, toLimit(eyePoly));
-  const geometry = toGeometry(poly, cage, M, joints, info);
+  const geometry = toGeometry(poly, cage, M, joints, { ...info, eyeCentres: eyes.centres }, look);
   return { geometry, joints, parents, bones: cage.bones, info, stats: { cageFaces, triangles: geometry.index.count / 3, vertices: poly.count, ms: performance.now() - t0 } };
 }
 
@@ -80,6 +109,7 @@ function placeEyes(poly, cage, eyes, joints) {
   const snout = cage.chOffset + CHANNELS.indexOf('SNOUT');
   const out = new Cage(cage.bones);
   const r = eyes.size;
+  const centres = [];
   let y = 0;
   let z = 0;
   for (const dir of eyes.dirs) {
@@ -100,8 +130,26 @@ function placeEyes(poly, cage, eyes, joints) {
     out.blob({ c: g, t: dir, s: eyes.hup, a: r * 0.26, b: r * 0.26, d: r * 0.14, w: { eyes: 1 }, ch: { GLINT: 1 } });
     y += c[1] / 2;
     z += c[2] / 2;
+    centres.push(c);
   }
   joints.eyes = [0, y, z];
+  eyes.centres = centres;
+  if (eyes.nose) {
+    // The nose: where the snout tip faces the nose direction, sunk in by a third of its depth.
+    const n = eyes.nose;
+    let best = -Infinity;
+    let p = null;
+    for (let v = 0; v < count; v++) {
+      const o = v * stride;
+      if (data[o + head] < 0.95 || data[o + snout] > n.band) continue;
+      const d = data[o] * n.dir[0] + data[o + 1] * n.dir[1] + data[o + 2] * n.dir[2];
+      if (d > best) {
+        best = d;
+        p = [data[o], data[o + 1], data[o + 2]];
+      }
+    }
+    if (p) out.blob({ c: v3.add(p, v3.mul(n.dir, -n.d * 0.35)), t: n.dir, s: [1, 0, 0], a: n.a, b: n.b, d: n.d, w: { head: 1 }, ch: { NOSE: 1 } });
+  }
   return out;
 }
 
@@ -113,7 +161,7 @@ function append(a, b) {
   return { data, stride: a.stride, count: a.count + b.count, faces: [...a.faces, ...b.faces.map((f) => f.map((i) => i + a.count))] };
 }
 
-function toGeometry(poly, cage, M, joints, info) {
+function toGeometry(poly, cage, M, joints, info, look) {
   const { data, stride, count, faces } = poly;
   const NB = cage.bones.length;
   const chOff = cage.chOffset;
@@ -146,12 +194,36 @@ function toGeometry(poly, cage, M, joints, info) {
         : [3, pattern.size, pattern.radius, pattern.density];
   const base = hex(paint.base ?? 0x999999);
   const patColor = hex(pattern?.color ?? paint.base ?? 0x999999);
-  const allMarks = M.mane ? [...(paint.marks ?? []), { color: M.mane.color, field: (p) => p.MANE * 0.05 }] : paint.marks ?? [];
+  // Parts that carry their own colour: the mane (darker at the tips) and the nose pad.
+  const allMarks = [...(paint.marks ?? [])];
+  // The mane on the neck is a marking; the ruff (MANE with a FUR coordinate) is painted as hair below.
+  if (M.mane) allMarks.push({ color: M.mane.color, field: (p) => (p.FUR < 0 ? p.MANE * 0.05 : -0.05) });
+  const maneRgb = M.mane && [hex(M.mane.color), hex(M.mane.tips ?? M.mane.color), hex(M.mane.streak ?? M.mane.tips ?? M.mane.color)];
+  if (look.nose?.color !== undefined) allMarks.push({ color: M.noseColor ?? look.nose.color, field: (p) => p.NOSE * 0.05 });
   const marks = allMarks.map((m) => ({ ...m, rgb: hex(m.color) }));
-  const v = { legLen: info.legLen };
+  // What marking fields see: the vertex's rest position (x, y, z), its channels (CHANNELS), sizes, the eye centres
+  // (eyeDist), and its bone weights (bone(name)).
+  const ground = minY;
+  const eyeC = (info.eyeCentres ?? []).map((c) => [c[0], c[1] - ground, c[2]]);
+  let rowOff = 0;
+  const painted = new Uint8Array(count);
+  const v = {
+    legLen: info.legLen,
+    bodyL: info.bodyL,
+    bodyH: info.bodyH,
+    headLen: info.headLen ?? 0,
+    /** Distance to the nearest eye centre, measured from a point shifted by (dy, dz) from it. */
+    eyeDist(dy = 0, dz = 0) {
+      let m = Infinity;
+      for (const c of eyeC) m = Math.min(m, Math.hypot(this.x - c[0], this.y - c[1] - dy, this.z - c[2] - dz));
+      return m;
+    },
+    bone: (name) => (cage.boneIndex[name] === undefined ? 0 : data[rowOff + 3 + cage.boneIndex[name]]),
+  };
   const w = new Float64Array(NB);
   for (let i = 0; i < count; i++) {
     const o = i * stride;
+    rowOff = o;
     const y = data[o + 1] - minY;
     position.set([data[o], y, data[o + 2]], i * 3);
     // Skin: the four largest weights, renormalised.
@@ -188,6 +260,7 @@ function toGeometry(poly, cage, M, joints, info) {
       if (f > 0) top = m.rgb;
     }
     if (top) bestRgb = top;
+    painted[i] = top ? 1 : 0;
     color.set(base, i * 3);
     color2.set(patColor, i * 3);
     color3.set(bestRgb, i * 3);
@@ -196,6 +269,33 @@ function toGeometry(poly, cage, M, joints, info) {
     // also need is `position` itself: the geometry is stored in its bind pose.)
     stripe[i] = patVec[0] === 1 ? v.S : v.PS;
     pat.set(patVec, i * 4);
+    if (maneRgb && v.MANE > 0.5 && v.FUR >= 0) {
+      // Ruff hair: the base shades from the mane colour at the roots to the tips colour, with darker streaks
+      // (the stripe pattern on the AUX coordinate) running out from the face.
+      const t = Math.min(1, Math.max(0, (v.FUR - 0.25) / 0.75));
+      for (let k = 0; k < 3; k++) color[i * 3 + k] = Math.round(maneRgb[0][k] + (maneRgb[1][k] - maneRgb[0][k]) * t);
+      color2.set(maneRgb[2], i * 3);
+      stripe[i] = v.AUX;
+      pat.set([1, 1, M.mane.streakWidth ?? 0.24, 0.55], i * 4);
+      // No markings on the ruff (the belly marking would reach its underside).
+      mark[i] = -1;
+    }
+  }
+  // Unpainted vertices next to a marking take that marking's colour, so across the edge the shader blends between the
+  // coat and that colour only (not towards whichever other marking happened to be least negative there).
+  // (The most strongly painted neighbour wins.)
+  const from = new Float32Array(count).fill(-Infinity);
+  for (const f of faces) {
+    for (let j = 0; j < 4; j++) {
+      const a = f[j];
+      if (painted[a]) continue;
+      for (const b of [f[(j + 1) % 4], f[(j + 3) % 4]]) {
+        if (painted[b] && mark[b] > from[a]) {
+          from[a] = mark[b];
+          color3.copyWithin(a * 3, b * 3, b * 3 + 3);
+        }
+      }
+    }
   }
   // Quads → triangles along the shorter diagonal.
   const index = new Uint32Array(faces.length * 6);
@@ -284,9 +384,10 @@ export function buildAnimal(id, opts = {}) {
 
   const rest = new Map();
   for (const b of Object.values(bones)) rest.set(b, { p: b.position.clone(), q: b.quaternion.clone(), s: b.scale.clone() });
-  const legs = tpl.info.legs.map((l) => ({ ...l, upper: bones[`upper${l.name}`], lower: bones[`lower${l.name}`], foot: bones[`foot${l.name}`] }));
+  const legs = (tpl.info.legs ?? []).map((l) => ({ ...l, upper: bones[`upper${l.name}`], lower: bones[`lower${l.name}`], foot: bones[`foot${l.name}`] }));
   const rig = {
-    kind: 'mesh-quad',
+    kind: tpl.info.kind ?? 'mesh-quad',
+    info: tpl.info,
     plan: look.plan,
     root: group,
     mesh,
@@ -294,12 +395,12 @@ export function buildAnimal(id, opts = {}) {
     rest,
     legs,
     body: bones.hips,
-    neck: bones.neck0,
+    neck: bones.neck0 ?? null,
     head: bones.head,
     eyes: bones.eyes,
-    tail: bones.tail0,
+    tail: bones.tail0 ?? null,
     trunk: bones.trunk0 ?? null,
-    size: { legLen: tpl.info.legLen, bodyH: tpl.info.bodyH, bodyL: tpl.info.bodyL },
+    size: { legLen: tpl.info.legLen, bodyH: tpl.info.bodyH, bodyL: tpl.info.bodyL, neckLen: tpl.info.neckLen },
     phase: (seed % 1000) / 159,
     stats: tpl.stats,
   };

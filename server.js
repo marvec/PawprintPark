@@ -19,6 +19,7 @@ const server = Bun.serve({
     '/': game,
     '/mockups/body-plans/': bodyPlans,
     '/mockups/single-mesh/': singleMesh,
+    '/mockups/single-mesh/plans/': bodyPlans,
   },
   async fetch(req) {
     const path = decodeURIComponent(new URL(req.url).pathname);
@@ -34,3 +35,4 @@ const server = Bun.serve({
 console.log(`Pawprint Park dev server: ${server.url}`);
 console.log(`Body-plan mockup:         ${server.url}mockups/body-plans/`);
 console.log(`Single-mesh experiment:   ${server.url}mockups/single-mesh/`);
+console.log(`Single-mesh body plans:   ${server.url}mockups/single-mesh/plans/`);

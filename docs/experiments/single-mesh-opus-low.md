@@ -206,6 +206,76 @@ debugging port.
   true for WebGL today. A WebGPU or TSL port would need an equivalent, such as an instanced attribute or a node
   uniform.
 
+## Round 2: every body plan, a real mane, and the details
+
+After the first review the single mesh was judged better overall. Round 2 extends it to all 12 v1 body plans and all
+30 species, reworks the lion's mane, and fixes details.
+
+### All 12 body plans
+
+The mockup `/mockups/single-mesh/plans/` is the body-plan mockup (same layout, keys and URL parameters) switched to
+the single-mesh builder. `builder=current` or the `M` key switch back, and `tris=1` adds triangle counts to the labels.
+Shots: `shots/opus-low/plans/overview.png` and one `row-<plan>.png` per plan, plus close-ups.
+
+| family | file | plans | what's new |
+|---|---|---|---|
+| quadrupeds | `quadruped.js` | hoof, cat, dog, bear, small, pachy | dog/bear/small torso, leg and head profiles; floppy and long ears; stub, up, curly, bushy, thick and ringed tails; horns, antlers with tines, beard, topknot, wool, back crest; nose pads |
+| birds | `bird.js` | bird-walk, bird-perch, penguin | one tube rump → neck → head → beak (cone, flat, hooked, bent); legs with toes, wings, tails (fan, sickle, plume, long) extruded; comb and wattles as islands |
+| pinnipeds | `pinniped.js` | pinniped | tube from tail to nose, raised chest for sea lions; fore and rear flippers; ear flaps |
+| reptiles | `reptile.js` | lizard, turtle | lizard: one tube tail tip → nose, sprawling legs, crest spikes, dewlap; tortoise: shell as a closed island over a skin tube with column legs |
+
+Each builder returns the same contract (cage, joints, bones, eye spec, `info.kind`), so `index.js` subdivides, skins,
+paints and grounds them all the same way. Poses live per family (`animate.js`, `animate-bird.js`,
+`animate-pinniped.js`, `animate-reptile.js`): the meerkat sits up as a sentry, the rabbit hops, the flamingo sleeps on
+one leg, the penguin waddles, and the tortoise pulls its head in.
+
+**Numbers, all 75 variants:**
+
+- triangles: high 7.8–15.2k, medium 5.6–8.7k, low 4.0–6.2k (the tests enforce 15.5k / 10.5k / 6.5k for every
+  variant);
+- build: 24–88 ms warm on high, measured while three headless Chromes were rendering (the first round's 12–43 ms
+  was on an idle machine);
+- geometry: at most 603 KB per variant; textures: none; draw calls: 1 per animal.
+
+### The lion's mane
+
+Round 1 bulged the neck and head rings, so the mane read as a turtleneck, then a hood. Now it is a **ruff**: a
+closed, lobed torus of hair, built as an island in the same mesh, so it is still one draw call.
+
+- It is 14 sections around the face. Each section runs from the face's edge out to a tuft, back to a second row of
+  tufts behind the head, out again over the shoulders, then into the body. Tuft sizes follow an uneven rhythm, and
+  the second row is staggered against the first, so the rim and the side profile are shaggy, not machined. The lower
+  half hangs over the chest.
+- **Hair paint:** the base shades from mane colour at the roots to dark tips (a smooth per-vertex gradient on `FUR`).
+  Dark streaks are the stripe pattern on a coordinate that runs round the face (`AUX`), so they flow out from the
+  face and back over the neck. The coordinate wraps under the chin, where the seam is hidden.
+- Shots: `lion-mane-front.png`, `lion-mane-side.png`, `lion-mane-game.png`.
+
+It reads as a mane from the front and from the in-game camera. From the side the streaks are still a little too
+regular, and the back edge is a fairly clean line.
+
+### Details fixed
+
+- **Noses** are pads on the snout tip (an island placed on the limit surface, like the eyes). Pigs and warthogs get
+  a flat disc.
+- **Necks:** short, thick necks are one ring, so pigs, tapirs and pandas lose the collar crease. Long necks taper
+  into the head, and the neck base stays inside the chest.
+- **Markings can see more:** a field gets the eye centres (`eyeDist`, for eye patches and brows), bone weights (whole
+  ears), and the head and body sizes. That gives panda patches and the shoulder band, the tapir's saddle, the red
+  panda's face, the meerkat's mask and sheep with dark faces and legs.
+- **Edges between a marking and the coat** no longer fringe towards another marking's colour: unpainted vertices
+  next to a marking take its colour (suggested by the bird builder, where red rings showed round the knees).
+- **Ringed tails** compute their bands after the rings are spaced out, so the bands are even.
+
+### Still weak
+
+- The polar bear's long neck still shows a slight crease at the chest.
+- Hoofed faces are long and the eyes sit on the sides (zebra, giraffe), which is anatomically right but less cute.
+- Medium and low are one subdivision level, so silhouettes are a little faceted up close.
+- Pinniped heads are dog-like and the sea lion's ear flaps barely show; lizard feet have no toes; the ostrich body
+  is plain. The walk poses look subtle in still frames.
+- Build time under heavy load approaches the 100 ms target for the busiest variants (iguana, tortoise, meerkat).
+
 ## Recommendation: adopt, with changes
 
 Adopt the single-mesh skinned approach for the four-legged plans. It fixes what it was meant to fix: profile, joints
@@ -222,6 +292,9 @@ weaknesses are art tuning, not architecture. Changes before rollout:
    cloning the skeleton only. Cheap stand-ins (PRD §17.1) can reuse the low-tier geometry unskinned.
 
 ### What a rollout to all 12 body plans would take
+
+*Round 2 update: the plans below are now built (round 2 above). What remains is the "Shared" row, plus art tuning
+per species.*
 
 Estimates assume the current cadence: build, then screenshot-driven tuning.
 

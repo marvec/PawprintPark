@@ -12,6 +12,9 @@ const TORSO = {
   hoof: { sag: 0.08, tuck: 0.1, rump: 0.5 },
   cat: { sag: 0, tuck: 0.3, rump: 0.45 },
   pachy: { sag: 0.06, tuck: 0.05, rump: 0.6 },
+  dog: { sag: 0, tuck: 0.25, rump: 0.45 },
+  bear: { sag: 0.03, tuck: 0.04, rump: 0.6 },
+  small: { sag: 0, tuck: 0.08, rump: 0.55 },
 };
 
 /**
@@ -46,7 +49,28 @@ const TORSO_RINGS = {
     { z: 0.36, y: 0.02, a: 1, b: 1.02, name: 'shA', hold: true },
     { z: 0.7, y: 0.02, a: 0.95, b: 1, name: 'shB' },
   ],
+  // Bears: round and heavy, a hump over the shoulders.
+  bear: [
+    { z: -1.0, y: 0.06, a: 0.55, b: 0.6 },
+    { z: -0.86, y: 0.02, a: 0.92, b: 0.94 },
+    { z: -0.58, y: 0.0, a: 1, b: 1, name: 'hipA', hold: true },
+    { z: -0.22, y: 0, a: 1, b: 0.98, name: 'hipB' },
+    { z: 0.08, y: 0.02, a: 1, b: 1 },
+    { z: 0.36, y: 0.06, a: 0.98, b: 1.06, name: 'shA', hold: true },
+    { z: 0.7, y: 0.02, a: 0.88, b: 0.96, name: 'shB' },
+  ],
+  // Small mammals: a soft bean, round at both ends.
+  small: [
+    { z: -1.0, y: 0.05, a: 0.55, b: 0.6 },
+    { z: -0.86, y: 0.02, a: 0.92, b: 0.94 },
+    { z: -0.58, y: 0.0, a: 1, b: 1, name: 'hipA', hold: true },
+    { z: -0.22, y: 0, a: 0.96, b: 0.96, name: 'hipB' },
+    { z: 0.08, y: 0, a: 0.95, b: 0.95 },
+    { z: 0.36, y: 0, a: 0.95, b: 0.98, name: 'shA', hold: true },
+    { z: 0.7, y: 0.0, a: 0.86, b: 0.92, name: 'shB' },
+  ],
 };
+TORSO_RINGS.dog = TORSO_RINGS.cat;
 
 /**
  * Leg profiles, top to bottom. h: height above the ground as a share of the leg length (top: just under the body),
@@ -114,6 +138,12 @@ const LEGS = {
   },
 };
 
+// Dogs and foxes walk on paws like cats, a little slimmer; bears and small mammals on short, padded paws.
+const scaleProfile = (prof, k) => prof.map((r) => ({ ...r, a: r.a * k, b: r.b * k }));
+LEGS.dog = { front: scaleProfile(LEGS.cat.front, 0.95), back: scaleProfile(LEGS.cat.back, 0.95) };
+LEGS.bear = { front: scaleProfile(LEGS.cat.front, 0.92), back: scaleProfile(LEGS.cat.back, 0.92) };
+LEGS.small = LEGS.bear;
+
 /**
  * Head rings along the head axis (from the head joint at the top of the neck): [name, along, up, half width,
  * half height], from the head, snout and the snout's drop. H1 carries the ears, S1 is the nose (or the trunk's base).
@@ -145,12 +175,41 @@ const HEADS = {
     ['S0', 0.95 * hd.l + 0.45 * sn.l, -0.8 * drop, 1.2 * sn.w, 1.2 * sn.h],
     ['S1', 0.95 * hd.l + 0.9 * sn.l, -drop, sn.w, sn.h],
   ],
+  // Dogs and foxes: a round skull and a long, narrow muzzle.
+  dog: (hd, sn, drop) => [
+    ['H0', -0.4 * hd.l, 0.12 * hd.h, 0.78 * hd.w, 0.78 * hd.h],
+    ['H1', 0.05 * hd.l, 0.12 * hd.h, 1.0 * hd.w, 0.95 * hd.h],
+    ['H2', 0.45 * hd.l, 0.02 * hd.h, 0.95 * hd.w, 0.85 * hd.h],
+    ['H3', 0.8 * hd.l, -0.14 * hd.h, 0.7 * hd.w, 0.62 * hd.h],
+    ['S0', 0.8 * hd.l + 0.6 * sn.l, -0.5 * drop - 0.12 * hd.h, 1.0 * sn.w, 1.0 * sn.h],
+    ['S1', 0.8 * hd.l + 1.2 * sn.l, -0.6 * drop - 0.12 * hd.h, 0.8 * sn.w, 0.8 * sn.h],
+  ],
 };
+// Bears: a broad skull and a medium muzzle; small mammals: round heads with short muzzles (as cats).
+HEADS.bear = (hd, sn, drop) => HEADS.dog(hd, sn, drop).map(([n, al, up, a, b]) => [n, al, up, n[0] === 'H' ? a * 1.04 : a, b]);
+HEADS.small = HEADS.cat;
 
 /** Tail centre lines (× tail length), from the root. */
 const TAILS = {
   tuft: [[0, 0, 0], [0, 0.01, -0.07], [0, -0.14, -0.2], [0, -0.42, -0.3], [0, -0.72, -0.34], [0, -0.86, -0.35]],
   long: [[0, 0, 0], [0, 0.0, -0.08], [0, -0.22, -0.24], [0, -0.48, -0.42], [0, -0.6, -0.68], [0, -0.52, -0.9], [0, -0.44, -0.98]],
+  thin: [[0, 0, 0], [0, 0.01, -0.07], [0, -0.14, -0.2], [0, -0.42, -0.3], [0, -0.72, -0.34], [0, -0.86, -0.35]],
+  stub: [[0, 0, 0], [0, 0.1, -0.5], [0, 0.05, -1]],
+  up: [[0, 0, 0], [0, 0.2, -0.25], [0, 0.5, -0.45], [0, 0.78, -0.55], [0, 0.95, -0.55]],
+  curly: [[0, 0, 0], [0, 0.15, -0.35], [0, 0.55, -0.5], [0.15, 0.75, -0.25], [0.25, 0.45, -0.1], [0.2, 0.3, -0.35]],
+  bushy: [[0, 0, 0], [0, -0.05, -0.15], [0, -0.25, -0.4], [0, -0.45, -0.65], [0, -0.55, -0.88], [0, -0.55, -1.0]],
+  thick: [[0, 0, 0], [0, -0.05, -0.3], [0, -0.18, -0.65], [0, -0.25, -1]],
+  ringed: [[0, 0, 0], [0, -0.1, -0.3], [0, -0.25, -0.65], [0, -0.28, -1]],
+};
+
+/** Tail radius along its length (t: 0 root → 1 tip), × the tail radius. */
+const TAIL_PROFILE = {
+  bushy: (t) => 1 + 2.2 * Math.sin(Math.PI * Math.min(1, 0.15 + t * 0.95)),
+  thick: (t) => lerp(1.1, 0.35, t),
+  ringed: (t) => lerp(1.05, 0.85, t),
+  stub: (t) => lerp(1.2, 0.8, t),
+  curly: () => 1,
+  up: (t) => lerp(1.3, 0.8, t),
 };
 
 /**
@@ -173,6 +232,22 @@ export function buildQuadCage(L, M, q) {
   const lift = (z) => slope * b.h * (z / b.l);
   const mane = M.mane;
   const trunk = ex.trunk;
+  // Wool (sheep, alpacas): lumpy, puffed-out body and neck. A crest along the back (warthogs).
+  const wool = ex.wool;
+  const woolR = wool ? Math.min(b.w, b.h) * (wool.size ?? 0.42) * 0.35 : 0;
+  const crestBack = M.crestBack;
+  const crestShape = (h) => (co, si) => [0, si > 0.85 ? h : 0];
+  const ridge = (co, si) => ({ RIDGE: si > 0.85 ? 1 : si > 0.3 ? -2 : -3 });
+  let lumpParity = 0;
+  // Rings alternate their vertices in and out (staggered ring to ring), which subdivides into soft lumps.
+  const lumps = (r, k) => {
+    const flip = (lumpParity++ % 2) * 2 - 1;
+    return (co, si) => {
+      const j = Math.round((Math.atan2(si, co) - Math.PI / 8) / (Math.PI / 4));
+      const e = r * (1 + k * flip * (j % 2 ? 1 : -1));
+      return [e, e];
+    };
+  };
 
   const legNames = ['FL', 'FR', 'BL', 'BR'];
   const bones = ['seed', 'hips', 'chest', 'neck0', 'neck1', 'head', 'eyes', 'earL', 'earR', 'tail0', 'tail1', 'tail2'];
@@ -201,8 +276,10 @@ export function buildQuadCage(L, M, q) {
       c: [0, bodyY + r.y * b.h + lift(z), z],
       a: b.w * r.a,
       b: b.h * r.b,
-      // Belly: sags in the middle (hoofed), tucks up towards the rump (cats).
-      shape: (co, si) => [0, si < 0 ? b.h * (sag - tuck) * -si : 0],
+      // Belly: sags in the middle (hoofed), tucks up towards the rump (cats). Wool puffs the body out in lumps; a
+      // crest (warthog) runs along the back.
+      shape: combine((co, si) => [0, si < 0 ? b.h * (sag - tuck) * -si : 0], wool && lumps(woolR, wool.lumps ?? 0.5), crestBack && r.z > crestBack.from && crestShape(crestBack.h * clamp01((r.z - crestBack.from) / 0.4))),
+      ch: crestBack && r.z > crestBack.from ? ridge : wool ? { FUR: 1 } : undefined,
       w: { hips: hipW, chest: 1 - hipW },
     });
   }
@@ -217,14 +294,15 @@ export function buildQuadCage(L, M, q) {
   joints.neck0 = nRoot;
   joints.neck1 = neckAt(0.5);
   joints.head = end;
+  let neckCap = Infinity;
   if (a < 0.9) {
     const last = keys[keys.length - 1];
     const n0 = neckAt(0.12);
     keys.push({ c: v3.lerp(last.c, n0, 0.5), a: lerp(last.a, nk.r * 1.3, 0.45), b: lerp(last.b, nk.r * 1.35, 0.45), w: { chest: 0.85, neck0: 0.15 } });
+    // The neck's first ring stays inside the body's front, so the neck doesn't bulge out of the chest.
+    neckCap = Math.min(last.a, last.b) * 0.92;
   }
   const crest = M.crest ?? 0;
-  const ridge = (co, si) => ({ RIDGE: si > 0.85 ? 1 : si > 0.3 ? -2 : -3 });
-  const crestShape = (h) => (co, si) => [0, si > 0.85 ? h : 0];
   const maneR = mane?.r ?? 0;
   // Mane rings alternate their vertices in and out (staggered ring to ring), which subdivides into soft tufts.
   let maneParity = 0;
@@ -236,20 +314,27 @@ export function buildQuadCage(L, M, q) {
       return [e, e + (si < 0 ? chest * -si : 0)];
     };
   };
-  const neckRings = [
-    { t: 0.12, r: nk.r * 1.28, w: { chest: 0.45, neck0: 0.55 }, m: 0.6 },
-    { t: 0.5, r: lerp(nk.r, r2, 0.45), w: { neck0: 0.7, neck1: 0.3 }, m: 0.9 },
-    { t: 0.86, r: lerp(nk.r, r2, 0.85), w: { neck0: 0.2, neck1: 0.8 }, m: 0.95 },
-  ];
+  // Short, thick necks (pigs, tapirs, bears) are one ring between the body and the head, so no collar shows.
+  const neckRings =
+    nk.len < 0.12
+      ? [{ t: 0.4, r: lerp(nk.r, Math.max(hd.w, hd.h) * 0.85, 0.5), w: { chest: 0.3, neck0: 0.5, neck1: 0.2 }, m: 0.9 }]
+      : [
+          { t: 0.12, r: nk.r * 1.28, w: { chest: 0.45, neck0: 0.55 }, m: 0.6 },
+          { t: 0.5, r: lerp(nk.r, r2, 0.45), w: { neck0: 0.7, neck1: 0.3 }, m: 0.9 },
+          { t: 0.86, r: lerp(nk.r, r2, 0.85), w: { neck0: 0.2, neck1: 0.8 }, m: 0.95 },
+        ];
   const neckScale = M.neckScale ?? 1;
+  // The neck narrows into the back of the head, so the head doesn't sit in a collar (bears).
+  const headR = Math.max(hd.w, hd.h) * 0.95;
   for (const n of neckRings) {
+    const r = Math.min(neckCap, mane ? n.r : lerp(n.r, Math.min(n.r, headR), n.t));
     keys.push({
       c: neckAt(n.t),
-      a: n.r * neckScale,
-      b: n.r * 1.04 * neckScale,
+      a: r * neckScale,
+      b: r * 1.04 * neckScale,
       w: n.w,
-      ch: mane ? { MANE: 1, RIDGE: -3 } : crest ? (co, si) => ({ ...ridge(co, si), PS: lerp(1, 0.7, n.t) }) : { PS: lerp(1, 0.7, n.t) },
-      shape: mane ? maneShape(maneR * n.m, n.t < 0.3 ? mane.chest ?? 0 : 0) : crest ? crestShape(crest) : undefined,
+      ch: mane ? { MANE: 1, RIDGE: -3 } : crest ? (co, si) => ({ ...ridge(co, si), PS: lerp(1, 0.7, n.t) }) : wool?.neck ? { FUR: 1, PS: lerp(1, 0.7, n.t) } : { PS: lerp(1, 0.7, n.t) },
+      shape: mane ? maneShape(maneR * n.m * 0.35, 0) : wool?.neck ? lumps(woolR * lerp(1, 0.6, n.t), wool.lumps ?? 0.5) : crest ? crestShape(crest) : undefined,
     });
   }
   // Head: along its own axis, pitched down from horizontal.
@@ -258,8 +343,8 @@ export function buildQuadCage(L, M, q) {
   const hup = [0, Math.cos(p), Math.sin(p)];
   const at = (along, up) => v3.add(end, v3.add(v3.mul(hdir, along), v3.mul(hup, up)));
   const drop = sn.drop ?? hd.h * 0.25;
-  // Behind a mane the face moves forward, so it pokes out of the ruff.
-  const faceShift = mane ? maneR * 0.75 : 0;
+  // Behind a mane the face moves forward a little, so it pokes out of the ruff.
+  const faceShift = mane ? maneR * 0.3 : 0;
   const headRings = (HEADS[L.plan] ?? HEADS.hoof)(hd, sn, drop, M.head ?? {}).map(([n, al, ...r]) => [n, n === 'H0' ? al : al + faceShift, ...r]);
   const H = Object.fromEntries(headRings.map(([name, along, up, ra, rb]) => [name, { along, up, ra, rb }]));
   for (const [name, along, up, ra, rb] of headRings) {
@@ -267,12 +352,7 @@ export function buildQuadCage(L, M, q) {
     const isMane = mane && name === 'H0';
     // Ears grow between H0 and H1 (between H1 and H2 behind a mane), ossicones after H1, tusks after S0.
     const hold = name === 'H1' || (name === 'H0' && !mane) || (name === 'S0' && !!ex.tusks);
-    keys.push({ name, hold, c: at(along, up), a: ra, b: rb, w, ch: isMane ? { MANE: 1 } : { PS: 0.75 }, shape: isMane ? maneShape(maneR, 0) : undefined });
-    if (isMane) {
-      // The mane's front rim, just behind the face: the step from rim to face makes the ruff.
-      const h1 = H.H1;
-      keys.push({ name: 'Hm', hold: true, c: at(h1.along - 0.3 * hd.l, h1.up), a: h1.ra, b: h1.rb, w: { head: 1 }, ch: { MANE: 1 }, shape: maneShape(maneR * 0.9, 0) });
-    }
+    keys.push({ name, hold, c: at(along, up), a: ra, b: rb, w, ch: isMane ? { MANE: 1 } : { PS: 0.75 }, shape: isMane ? maneShape(maneR * 0.3, 0) : undefined });
   }
   if (trunk) {
     const base = keys[keys.length - 1].c;
@@ -358,21 +438,25 @@ export function buildQuadCage(L, M, q) {
   }
 
   // ---- Tail --------------------------------------------------------------------------------------------------------
-  const tl = L.tail ?? { kind: 'stub', len: 0.1 };
+  const tl = L.tail ?? { kind: 'stub' };
   {
     const f = cage.faces[tailRoot];
     const fc = v3.mul(f.map((i) => cage.pos(i)).reduce(v3.add), 0.25);
     const fS = f.reduce((s, i) => s + cage.ch(i, 'S'), 0) / 4;
-    const len = tl.len ?? 0.2;
-    const r = tl.r ?? len * 0.06;
+    const len = tl.len ?? (tl.kind === 'stub' ? (tl.r ?? 0.04) * 2.2 : 0.2);
+    const r = tl.kind === 'bushy' ? (tl.r ?? len * 0.07) : (tl.r ?? len * 0.06);
+    const profile = TAIL_PROFILE[tl.kind] ?? ((t) => lerp(1.7, 1, Math.min(1, t * 2.5)));
     const path = (TAILS[tl.kind] ?? TAILS.tuft).map((pt) => v3.add(fc, v3.mul(pt, len)));
     const tipLen = path.reduce((s, pt, i) => (i ? s + v3.len(v3.sub(pt, path[i - 1])) : 0), 0);
     let d = 0;
-    const tufted = tl.kind === 'tuft' || tl.tip;
+    const tufted = M.tailTuft ?? (tl.kind === 'tuft' || (tl.tip && (tl.kind === 'long' || tl.kind === 'up')));
+    // Ringed tails: a periodic field along the tail (seven bands), painted by a marking on AUX. It is set after the
+    // rings are spaced out (resample would interpolate it linearly between the key rings).
+    const bands = tl.kind === 'ringed' ? (2 * Math.PI * 3.5) / tipLen : 0;
     const tk = path.map((c, i) => {
       if (i) d += v3.len(v3.sub(c, path[i - 1]));
       const t = d / tipLen;
-      const rr = r * lerp(1.7, 1, Math.min(1, t * 2.5));
+      const rr = r * profile(t);
       const w = t < 0.3 ? { hips: 0.6 - t, tail0: 0.4 + t } : t < 0.65 ? { tail0: 0.65 - t, tail1: t } : { tail1: 1 - t, tail2: t };
       return { c, a: rr, b: rr, w, ch: { TAIL: tipLen - d, S: fS + d * 1.2 } };
     });
@@ -390,16 +474,17 @@ export function buildQuadCage(L, M, q) {
       tk.push({ ...last, c: v3.sub(last.c, v3.mul(along, tuftLen * 0.4)), a: r * 2.3, b: r * 2.3, ch: { TAIL: tuftLen * 0.45, S: last.ch.S } });
       tk.push({ ...last, c: last.c, a: r * 1.6, b: r * 1.6, ch: { TAIL: 0, S: last.ch.S } });
     }
-    cage.extrude(tailRoot, resample(tk, q.legStep).map((k) => ({ ...k, s: [1, 0, 0] })));
+    const tailRings = resample(tk, Math.min(q.legStep, bands ? tipLen / 28 : Infinity));
+    cage.extrude(tailRoot, tailRings.map((k) => ({ ...k, s: [1, 0, 0], ch: bands ? { ...k.ch, AUX: Math.sin((tipLen - k.ch.TAIL) * bands) } : k.ch })));
   }
 
   // ---- Head parts: ears, ossicones, tusks; eyes --------------------------------------------------------------------
-  const ears = M.ears ?? { kind: 'round', size: hd.h * 0.6 };
+  const ears = M.ears ?? (L.ears?.kind === 'big' ? { kind: 'flap', size: L.ears.size } : L.ears) ?? { kind: 'round', size: hd.h * 0.6 };
   const es = ears.size ?? L.ears?.size ?? hd.h * 0.6;
   const earRings = mane ? [named.H1, spineAfter(spine, named.H1)] : [named.H0, spineAfter(spine, named.H0)];
   for (const side of [1, -1]) {
     const bone = side > 0 ? 'earR' : 'earL';
-    const k = ears.kind === 'side' || ears.kind === 'flap' ? (side > 0 ? 7 : 3) : side > 0 ? 0 : 2;
+    const k = ears.kind === 'side' || ears.kind === 'flap' || ears.kind === 'floppy' ? (side > 0 ? 7 : 3) : side > 0 ? 0 : 2;
     const fi = cage.faceBetween(earRings[0], earRings[1], k);
     const f = cage.faces[fi];
     const fc = v3.mul(f.map((i) => cage.pos(i)).reduce(v3.add), 0.25);
@@ -408,12 +493,33 @@ export function buildQuadCage(L, M, q) {
     const fS = f.reduce((s, i) => s + cage.ch(i, 'S'), 0) / 4;
     const front = (sideSign) => (co, si) => ({ EAR: si * sideSign > 0.3 ? 1 : -1, S: fS });
     let specs;
-    if (ears.kind === 'round') {
+    if (ears.kind === 'round' || ears.kind === 'small') {
       const t = v3.norm([side * 0.45, 1, -0.15]);
       specs = [
         { c: v3.add(fc, v3.mul(t, es * 0.15)), t, s: [1, 0, 0], a: es * 0.34, b: es * 0.16, w, ch: { S: fS } },
         { c: v3.add(fc, v3.mul(t, es * 0.5)), t, s: [1, 0, 0], a: es * 0.5, b: es * 0.13, w, ch: front(-1) },
         { c: v3.add(fc, v3.mul(t, es * 0.78)), t, s: [1, 0, 0], a: es * 0.36, b: es * 0.1, w, ch: { S: fS } },
+      ];
+    } else if (ears.kind === 'long') {
+      // Rabbits and donkeys: tall, spoon-shaped, leaning back.
+      const t = v3.norm([side * (ears.splay ?? 0.2) * 1.5, 1, -(ears.back ?? 0.3)]);
+      specs = [
+        { c: v3.add(fc, v3.mul(t, es * 0.1)), t, s: [1, 0, 0], a: es * 0.14, b: es * 0.1, w, ch: { S: fS } },
+        { c: v3.add(fc, v3.mul(t, es * 0.4)), t, s: [1, 0, 0], a: es * 0.2, b: es * 0.07, w, ch: front(-1) },
+        { c: v3.add(fc, v3.mul(t, es * 0.8)), t, s: [1, 0, 0], a: es * 0.19, b: es * 0.06, w, ch: front(-1) },
+        { c: v3.add(fc, v3.mul(t, es * 1.08)), t, s: [1, 0, 0], a: es * 0.09, b: es * 0.04, w, ch: front(-1) },
+        { c: v3.add(fc, v3.mul(t, es * 1.18)), t, s: [1, 0, 0], a: es * 0.02, b: es * 0.02, w, ch: { S: fS } },
+      ];
+    } else if (ears.kind === 'floppy') {
+      // Sheep, goats and pigs: flat ears hanging out and down from the sides of the head.
+      const droop = ears.droop ?? 0.45;
+      const P = (x, y, z) => v3.add(fc, v3.mul([side * x, y, z], es));
+      const t = v3.norm([side, -droop * 1.4, 0.1]);
+      specs = [
+        { c: P(0.1, 0.02, 0), t: [side, 0, 0], s: [0, 0, 1], a: es * 0.18, b: es * 0.09, w, ch: { S: fS } },
+        { c: P(0.38, -0.1 * droop * 2, 0.04), t, s: [0, 0, 1], a: es * 0.26, b: es * 0.06, w, ch: front(side) },
+        { c: P(0.62, -0.32 * droop * 2, 0.06), t, s: [0, 0, 1], a: es * 0.24, b: es * 0.05, w, ch: front(side) },
+        { c: P(0.74, -0.46 * droop * 2, 0.06), t, s: [0, 0, 1], a: es * 0.08, b: es * 0.03, w, ch: { S: fS } },
       ];
     } else if (ears.kind === 'pointy') {
       const t = v3.norm([side * 0.4, 1, -0.3]);
@@ -462,6 +568,58 @@ export function buildQuadCage(L, M, q) {
       ]);
     }
   }
+  if (ex.horns) {
+    // Goats: horns sweeping up and back from the top of the head.
+    const h = ex.horns;
+    const sz = h.size;
+    for (const side of [1, -1]) {
+      const fi = cage.faceBetween(named.H1, spineAfter(spine, named.H1), side > 0 ? 0 : 2);
+      const fc = faceCentre(cage, fi);
+      const pts = (h.curve ?? [[0, 0, 0], [0.06, 0.45, -0.2], [0.14, 0.62, -0.62], [0.22, 0.45, -0.98]]).map(([x, y, z]) => v3.add(fc, [side * x * sz, y * sz, z * sz]));
+      const r = h.r ?? sz * 0.11;
+      cage.extrude(fi, horn(pts, r, r * 0.2, { head: 1 }, 0.1 * sz));
+    }
+  }
+  if (ex.antlers) {
+    // Reindeer: a beam up and back then forward, two tines off it, and a brow tine over the face.
+    const sz = ex.antlers.size;
+    const r = ex.antlers.r ?? sz * 0.035;
+    for (const side of [1, -1]) {
+      const fi = cage.faceBetween(named.H1, spineAfter(spine, named.H1), side > 0 ? 0 : 2);
+      const fc = faceCentre(cage, fi);
+      const beam = [[0, 0, 0], [0.12, 0.25, -0.18], [0.28, 0.55, -0.15], [0.32, 0.8, 0.05], [0.26, 0.98, 0.25]].map(([x, y, z]) => v3.add(fc, [side * x * sz, y * sz, z * sz]));
+      const rings = cage.extrude(fi, horn(beam, r * 1.4, r * 0.55, { head: 1 }, r));
+      for (const [i, len, up] of [[1, 0.24, 0.35], [3, 0.2, 0.5], [5, 0.2, 0.6]]) {
+        if (!rings[i + 1]) continue;
+        const tf = facingFace(cage, rings[i], rings[i + 1], [0, up, 1]);
+        const tc = faceCentre(cage, tf);
+        const tip = v3.add(tc, v3.mul(v3.norm([side * 0.05, up, 1]), len * sz));
+        cage.extrude(tf, horn([tc, v3.lerp(tc, tip, 0.5), tip], r * 0.75, r * 0.3, { head: 1 }, r * 0.5).slice(1));
+      }
+    }
+  }
+  if (ex.beard) {
+    // Goats: a tuft under the chin.
+    const fi = cage.faceBetween(named.S0, spineAfter(spine, named.S0), 5);
+    const fc = faceCentre(cage, fi);
+    const len = ex.beard.len;
+    cage.extrude(fi, [
+      { c: v3.add(fc, [0, -len * 0.35, -len * 0.05]), t: [0, -1, -0.2], a: sn.w * 0.3, b: sn.w * 0.22, w: { head: 1 }, ch: { AUX: 1 } },
+      { c: v3.add(fc, [0, -len * 0.9, -len * 0.15]), t: [0, -1, -0.2], a: sn.w * 0.16, b: sn.w * 0.12, w: { head: 1 }, ch: { AUX: 1 } },
+      { c: v3.add(fc, [0, -len * 1.1, -len * 0.2]), t: [0, -1, -0.2], a: sn.w * 0.04, b: sn.w * 0.04, w: { head: 1 }, ch: { AUX: 1 } },
+    ]);
+  }
+  if (ex.topknot) {
+    // Sheep and alpacas: a woolly tuft on the crown.
+    const fi = cage.faceBetween(named.H0, spineAfter(spine, named.H0), 1);
+    const fc = faceCentre(cage, fi);
+    const r = hd.w * (ex.topknot.size ?? 0.45);
+    const t = v3.norm(v3.add(hup, v3.mul(hdir, 0.3)));
+    cage.extrude(fi, [
+      { c: v3.add(fc, v3.mul(t, r * 0.35)), t, a: r * 1.1, b: r * 1.1, w: { head: 1 }, ch: { FUR: 1 } },
+      { c: v3.add(fc, v3.mul(t, r * 0.8)), t, a: r * 0.85, b: r * 0.85, w: { head: 1 }, ch: { FUR: 1 } },
+    ]);
+  }
   if (ex.tusks) {
     const tu = ex.tusks;
     for (const side of [1, -1]) {
@@ -473,6 +631,26 @@ export function buildQuadCage(L, M, q) {
       specs.unshift({ c: v3.lerp(fc, pts[1], 0.15), a: tu.r * 1.15, b: tu.r * 1.15, w: { head: 1 }, ch: { TUSK: -0.2 } });
       cage.extrude(fi, resample(specs, 1e9));
     }
+  }
+
+  if (mane) {
+    // The ruff: lobed hair around the face that sweeps back over the neck to the shoulders. Its rim frames the face.
+    ruff(cage, {
+      c: at(H.H1.along - 0.2 * hd.l, H.H1.up - 0.06 * hd.h),
+      D: hdir,
+      U: hup,
+      ra: hd.w,
+      rb: hd.h * 1.05,
+      out: maneR,
+      // The back of the ruff lies over the shoulders (the last torso ring), not just the neck.
+      shoulder: keys.find((k) => k.name === 'shB'),
+      bodyL: b.l,
+      n: 14,
+      lobe: mane.lobe ?? 0.45,
+      chest: mane.chest ?? 0,
+      w: { head: 0.55, neck1: 0.45 },
+      wBack: { chest: 0.85, neck0: 0.15 },
+    });
   }
 
   // Eyes are placed on the subdivided surface (index.js): where the head faces the eye's direction, within a band
@@ -487,8 +665,112 @@ export function buildQuadCage(L, M, q) {
     hup,
     hdir,
   };
+  // A nose pad on the tip of the snout (not for trunks): flat for pigs and warthogs, a small cushion otherwise.
+  if (L.nose && !trunk) {
+    const disc = L.nose.kind === 'disc';
+    eyes.nose = disc
+      ? { dir: hdir, a: sn.w * 0.72, b: sn.h * 0.68, d: sn.l * 0.18, band: sn.l * 0.3 }
+      : { dir: v3.norm(v3.add(hdir, v3.mul(hup, 0.55))), a: sn.w * (M.nose?.w ?? 0.42), b: sn.h * (M.nose?.h ?? 0.26), d: sn.h * 0.16, band: sn.l * 0.45 };
+  }
 
-  return { cage, joints, parents, eyes, info: { legs: legInfo, legLen: lg.len, bodyH: b.h, bodyL: b.l, neckLen: nk.len } };
+  const headLen = H.S1.along - H.H0.along;
+  return { cage, joints, parents, eyes, info: { kind: 'mesh-quad', legs: legInfo, legLen: lg.len, bodyH: b.h, bodyL: b.l, neckLen: nk.len, headLen, gait: L.gait ?? 'walk', stance: L.stance ?? null } };
+}
+
+/**
+ * A lion's ruff: a lobed torus of hair around the head and neck, open at the face. Each of n cross-sections runs from
+ * the inner front edge (against the face) out to the tuft and back along the neck into it. Every other section reaches
+ * further out, so the rim subdivides into soft tufts; the lower half hangs further down (onto the chest).
+ */
+function ruff(cage, { c, D, U, ra, rb, out, shoulder, bodyL, n, lobe, chest, w, wBack, streaks = 40 }) {
+  const X = [1, 0, 0];
+  // Tuft sizes around the face: a fixed, uneven rhythm so the rim doesn't look machined.
+  const RHYTHM = [1, 0.75, 0.95, 0.85, 1.05, 0.8];
+  const secs = [];
+  for (let i = 0; i < n; i++) {
+    // Sections start under the chin, where the streak coordinate (AUX) wraps round (hidden against the chest).
+    const th = Math.PI + (i / n) * Math.PI * 2;
+    const co = Math.cos(th);
+    const si = Math.sin(th);
+    const low = Math.max(0, -co);
+    const top = Math.max(0, co);
+    // Tufts reach out on even sections; less on top (the mane sits low, framing the face), more under the chin.
+    const k = (i % 2 ? 1 - 0.55 * lobe : (1 + lobe) * RHYTHM[(i / 2) % RHYTHM.length]) * (1 - 0.3 * top) * (1 + chest * low * 2.5);
+    const around = (C, up, r1, r2) => v3.add(C, v3.add(v3.mul(up, co * r1), v3.mul(X, si * r2)));
+    const head = (r, s, along) => around(v3.add(c, v3.mul(D, along - low * 0.35 * rb)), U, rb * s + r, ra * s + r);
+    // Around the shoulders: over the back and sides, tucked in under the chest.
+    const sh = (dz, s, r) => around(v3.add(shoulder.c, [0, 0, dz]), [0, 1, 0], (shoulder.b * s + r) * (co < 0 ? 0.92 : 1), shoulder.a * s + r);
+    // A second row of tufts behind the first, staggered against it, and a ragged back edge over the shoulders.
+    const k2 = (i % 2 ? 1 + lobe * 0.8 : 1 - 0.3 * lobe) * (1 - 0.2 * top) * (1 + chest * low * 2);
+    const tail = i % 2 ? 0.9 : -0.5;
+    const pts = [
+      [head(0, 0.86, 0.12 * rb), w, 0],
+      [head(out * k, 1, -0.15 * rb), w, 1],
+      // Behind the face the hair dips a little, then swells again over the shoulders: two masses, not a hood.
+      [head(out * k2 * 0.72, 1, -1.0 * rb), w, 0.7],
+      [sh(tail * rb - 0.28 * bodyL, 1, out * (0.5 + 0.3 * k) * (1 - 0.2 * low)), wBack, 1],
+      [sh(-0.6 * bodyL, 0.86, 0), wBack, 0],
+    ];
+    // AUX runs round the face: hair streaks follow its iso-lines, out from the face and back over the neck.
+    secs.push(pts.map(([p, ww, fur]) => cage.vert(p, ww, { MANE: 1, FUR: fur, UNDER: -co, PS: 0.7, AUX: (i / n) * streaks })));
+  }
+  const m = secs[0].length;
+  const faces = [];
+  for (let i = 0; i < n; i++) {
+    const a = secs[i];
+    const b = secs[(i + 1) % n];
+    for (let q = 0; q < m; q++) faces.push([a[q], a[(q + 1) % m], b[(q + 1) % m], b[q]]);
+  }
+  // Outward winding: the enclosed volume must come out positive.
+  let vol = 0;
+  for (const f of faces) {
+    const [p0, p1, p2, p3] = f.map((i) => cage.pos(i));
+    vol += v3.dot(p0, v3.cross(p1, p2)) + v3.dot(p0, v3.cross(p2, p3));
+  }
+  for (const f of faces) cage.face(...(vol < 0 ? f.reverse() : f));
+}
+
+/** Centre of a cage face. */
+function faceCentre(cage, fi) {
+  const f = cage.faces[fi];
+  return v3.mul(f.map((i) => cage.pos(i)).reduce(v3.add), 1 / f.length);
+}
+
+/** The face between two rings that faces most along `dir`. */
+function facingFace(cage, r1, r2, dir) {
+  let best = -1;
+  let bestD = -Infinity;
+  const c = v3.mul(r1.map((i) => cage.pos(i)).reduce(v3.add), 1 / r1.length);
+  for (let k = 0; k < r1.length; k++) {
+    const fi = cage.faceBetween(r1, r2, k);
+    const d = v3.dot(v3.norm(v3.sub(faceCentre(cage, fi), c)), v3.norm(dir));
+    if (d > bestD) {
+      bestD = d;
+      best = fi;
+    }
+  }
+  return best;
+}
+
+/** Ring specs along a horn's centre line (first point = the face it grows from), tapering r0 → r1; TUSK paints it. */
+function horn(pts, r0, r1, w, base) {
+  let len = 0;
+  for (let i = 1; i < pts.length; i++) len += v3.len(v3.sub(pts[i], pts[i - 1]));
+  let d = 0;
+  return pts.slice(1).map((c, i) => {
+    d += v3.len(v3.sub(c, pts[i]));
+    const r = lerp(r0, r1, d / len);
+    return { c, t: v3.sub(c, pts[i]), a: r, b: r, w, ch: { TUSK: d > base ? 1 : -1 } };
+  });
+}
+
+/** Sums ring shape functions (falsy entries skipped). */
+function combine(...fns) {
+  const list = fns.filter(Boolean);
+  return (co, si) => list.reduce((acc, f) => {
+    const [a, b] = f(co, si);
+    return [acc[0] + a, acc[1] + b];
+  }, [0, 0]);
 }
 
 /** The spine ring after `ring`. */

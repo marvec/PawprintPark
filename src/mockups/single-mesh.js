@@ -20,12 +20,10 @@ import { detail } from '../scene/animals/shapes.js';
 import { buildLights, buildMeadow, buildSky } from '../scene/backdrop.js';
 
 const SPECIES = single.MESH_SPECIES;
-const VARIANTS = {
-  lion: [['male', 'adult'], ['female', 'adult'], ['female', 'baby']],
-  'plains-zebra': [['female', 'adult'], ['female', 'baby']],
-  'reticulated-giraffe': [['female', 'adult']],
-  'asian-elephant': [['male', 'adult'], ['female', 'adult'], ['female', 'baby']],
-};
+// species=all would be 30 rows; the overview starts with the first experiment's four (the arrows reach the rest).
+const FIRST = ['lion', 'plains-zebra', 'reticulated-giraffe', 'asian-elephant'];
+/** Both sexes where they look different, plus the baby. */
+const VARIANTS = Object.fromEntries(SPECIES.map((id) => [id, [...(current.isDimorphic(id) ? [['male', 'adult']] : []), ['female', 'adult'], ['female', 'baby']]]));
 const VIEWS = { game: [0.55, 0.75, 1], side: [0, 0.08, 1], front: [0, 0.12, 1] };
 
 const params = new URLSearchParams(location.search);
@@ -84,7 +82,7 @@ function build() {
   clear();
   const q = QUALITY[state.quality];
   detail.level = q.detail;
-  const ids = state.species === 'all' ? SPECIES : [state.species];
+  const ids = state.species === 'all' ? FIRST : [state.species];
   let z = 0;
   for (const id of ids) {
     let variants = VARIANTS[id];
