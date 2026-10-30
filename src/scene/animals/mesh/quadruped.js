@@ -154,8 +154,8 @@ const HEADS = {
     ['H1', 0.25 * hd.l, 0.18 * hd.h, hd.w, 0.97 * hd.h],
     ['H2', 0.75 * hd.l, 0.08 * hd.h, 0.93 * hd.w, 0.88 * hd.h],
     ['H3', 1.2 * hd.l, -0.3 * drop, lerp(hd.w, sn.w, 0.45), lerp(hd.h, sn.h, 0.4)],
-    ['S0', 1.2 * hd.l + 0.9 * sn.l, -0.75 * drop, 1.04 * sn.w, 1.04 * sn.h],
-    ['S1', 1.2 * hd.l + 1.65 * sn.l, -0.85 * drop, 0.9 * sn.w, 0.86 * sn.h],
+    ['S0', 1.15 * hd.l + 0.75 * sn.l, -0.75 * drop, 1.08 * sn.w, 1.06 * sn.h],
+    ['S1', 1.15 * hd.l + 1.4 * sn.l, -0.85 * drop, 0.95 * sn.w, 0.9 * sn.h],
   ],
   // Cats: a round skull, wide cheeks and a short, broad muzzle.
   cat: (hd, sn, drop) => [
@@ -286,7 +286,8 @@ export function buildQuadCage(L, M, q) {
   // Neck.
   const a = nk.angle ?? 0.8;
   const dir = [0, Math.sin(a), Math.cos(a)];
-  const nRoot = [0, bodyY + b.h * (nk.y ?? 0.45) + lift(b.l * (nk.z ?? 0.78)), b.l * (nk.z ?? 0.78)];
+  const nz = M.neckZ ?? nk.z ?? 0.78;
+  const nRoot = [0, bodyY + b.h * (M.neckY ?? nk.y ?? 0.45) + lift(b.l * nz), b.l * nz];
   const r2 = nk.r2 ?? nk.r * 0.75;
   const neckLen = nk.len * (M.neckLen ?? 1);
   const neckAt = (t) => v3.add(nRoot, v3.mul(dir, neckLen * t));
@@ -298,7 +299,13 @@ export function buildQuadCage(L, M, q) {
   if (a < 0.9) {
     const last = keys[keys.length - 1];
     const n0 = neckAt(0.12);
-    keys.push({ c: v3.lerp(last.c, n0, 0.5), a: lerp(last.a, nk.r * 1.3, 0.45), b: lerp(last.b, nk.r * 1.35, 0.45), w: { chest: 0.85, neck0: 0.15 } });
+    // A long, low neck (bears) blends out of the body over two rings, so no crease forms where they meet.
+    // The radius eases from the body's down to the neck's (a smoothstep), so the chest rounds into the neck.
+    const blend = M.neckBlend ? [0.25, 0.5, 0.75] : [0.5];
+    for (const t of blend) {
+      const e = t * t * (3 - 2 * t);
+      keys.push({ c: v3.lerp(last.c, n0, t), a: lerp(last.a, nk.r * 1.3, e * 0.9), b: lerp(last.b, nk.r * 1.35, e * 0.9), w: { chest: 1 - t * 0.3, neck0: t * 0.3 } });
+    }
     // The neck's first ring stays inside the body's front, so the neck doesn't bulge out of the chest.
     neckCap = Math.min(last.a, last.b) * 0.92;
   }
@@ -702,7 +709,7 @@ function ruff(cage, { c, D, U, ra, rb, out, shoulder, bodyL, n, lobe, chest, w, 
     const sh = (dz, s, r) => around(v3.add(shoulder.c, [0, 0, dz]), [0, 1, 0], (shoulder.b * s + r) * (co < 0 ? 0.92 : 1), shoulder.a * s + r);
     // A second row of tufts behind the first, staggered against it, and a ragged back edge over the shoulders.
     const k2 = (i % 2 ? 1 + lobe * 0.8 : 1 - 0.3 * lobe) * (1 - 0.2 * top) * (1 + chest * low * 2);
-    const tail = i % 2 ? 0.9 : -0.5;
+    const tail = i % 2 ? 1.7 : -0.6;
     const pts = [
       [head(0, 0.86, 0.12 * rb), w, 0],
       [head(out * k, 1, -0.15 * rb), w, 1],
@@ -712,7 +719,8 @@ function ruff(cage, { c, D, U, ra, rb, out, shoulder, bodyL, n, lobe, chest, w, 
       [sh(-0.6 * bodyL, 0.86, 0), wBack, 0],
     ];
     // AUX runs round the face: hair streaks follow its iso-lines, out from the face and back over the neck.
-    secs.push(pts.map(([p, ww, fur]) => cage.vert(p, ww, { MANE: 1, FUR: fur, UNDER: -co, PS: 0.7, AUX: (i / n) * streaks })));
+    // The streak coordinate also drifts along each section, so the streaks curl instead of running in parallel lines.
+    secs.push(pts.map(([p, ww, fur], q) => cage.vert(p, ww, { MANE: 1, FUR: fur, UNDER: -co, PS: 0.7, AUX: (i / n) * streaks + (q ? 0.9 * Math.sin(i * 2.3 + q * 1.9) : 0) })));
   }
   const m = secs[0].length;
   const faces = [];

@@ -41,7 +41,7 @@ export function animatePinniped(rig, pose, t, amp) {
       }
     }
     B.neck0.rotation.x += 0.55;
-    B.head.rotation.z += 0.3;
+    B.head.rotation.z += 0.2;
     B.hips.scale.y *= 1 + sin(t * 1.1) * 0.025 * amp;
     blink(rig, t, true);
   }

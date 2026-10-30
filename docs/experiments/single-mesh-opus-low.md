@@ -267,14 +267,43 @@ regular, and the back edge is a fairly clean line.
   next to a marking take its colour (suggested by the bird builder, where red rings showed round the knees).
 - **Ringed tails** compute their bands after the rings are spaced out, so the bands are even.
 
-### Still weak
+### Round 3: fixing the weak spots
 
-- The polar bear's long neck still shows a slight crease at the chest.
-- Hoofed faces are long and the eyes sit on the sides (zebra, giraffe), which is anatomically right but less cute.
-- Medium and low are one subdivision level, so silhouettes are a little faceted up close.
-- Pinniped heads are dog-like and the sea lion's ear flaps barely show; lizard feet have no toes; the ostrich body
-  is plain. The walk poses look subtle in still frames.
-- Build time under heavy load approaches the 100 ms target for the busiest variants (iguana, tortoise, meerkat).
+Everything listed as weak at the end of round 2 was worked on:
+
+- **Medium and low tiers shade smoothly.** Normals now come from the limit surface one subdivision level finer
+  (positions only, cheap), so the one-level tiers no longer look faceted. There are no extra triangles
+  (`zebra-game-low.png`).
+- **Hoofed faces:** shorter muzzles and much bigger eyes, set further forward. A pale ring round the zebra's eyes
+  sets them off from the black face stripes (`plains-zebra-game.png`).
+- **Polar bear:** the long neck leaves the front of the chest, not its top, and blends in over three eased rings.
+  The crease is gone (`plans/bear-polar-game.png`).
+- **Lion's mane:** the streaks curl (the coordinate drifts along each section), and the back edge over the
+  shoulders is ragged (`lion-mane-*.png`).
+- **Pinnipeds:**
+  - a domed skull running into the neck, a short muzzle with whisker-pad lobes and a nose pad, and bigger forward
+    eyes; the seal has no visible neck;
+  - pointed ear flaps that lie back along the skull;
+  - the flipper colour starts at the wrist.
+- **Lizards:**
+  - three-toed feet with dark claws on the Komodo;
+  - raised iguana eyes with pale lids;
+  - a forked Komodo tongue that flicks out (visible in still shots);
+  - the hind thighs no longer bulge above the back.
+- **Birds:**
+  - Ostrich: scalloped plumage, big drooping white wing plumes, and bare pink drumsticks that narrow into the knee.
+  - Macaw: stands upright like a perched parrot, with a broad red-to-blue tail and wings on the flanks showing the
+    yellow band and blue feathers.
+  - Penguin: the white front is one clean curve.
+  - Flamingo: sleeps with a real Z-fold leg tucked under the belly.
+  - Chicken: one serrated comb blade on low and medium (no boxy lobes), and no bib on the hen.
+
+**Left as is, on purpose:**
+- Lizards have three toes, not five: the iguana is at 15.0k / 6.4k triangles on high and low, against
+  budgets of 15.5k / 6.5k.
+- In the in-game view a small point of the sea lion's ear still shows when it sleeps.
+- The macaw has a soft fold where the wing meets the back.
+- Under heavy machine load the busiest variants build in 60–90 ms (target: under 100 ms).
 
 ## Recommendation: adopt, with changes
 

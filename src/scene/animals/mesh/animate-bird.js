@@ -62,14 +62,13 @@ export function animateBird(rig, pose, t, amp) {
       B.neck0.rotation.x += 0.35;
       B.head.rotation.x += 0.3;
     } else if (legLen > 0.4) {
-      // Long-legged birds sleep standing on one leg (the other folded up under the belly), the neck laid back
-      // and the head turned onto the back.
+      // Long-legged birds sleep standing on one leg, the other folded up under the belly in a Z: the heel swings
+      // back and down a little, and the shank folds forward and up at it, so the foot tucks in under the belly. The
+      // neck is laid back and the head turned onto the back.
       const l = rig.legs[1];
-      // (The shank is shortened as if drawn up into the belly feathers.)
-      l.upper.rotation.x = -1.0;
-      l.lower.rotation.x = 2.9;
-      l.lower.scale.y = 0.45;
-      l.foot.rotation.x = -1.2;
+      l.upper.rotation.x = 0.45;
+      l.lower.rotation.x = -2.75;
+      l.foot.rotation.x = 1.1;
       B.neck0.rotation.x -= 0.7;
       B.neck1.rotation.x += 1.1;
       B.head.rotation.y += 2.6;

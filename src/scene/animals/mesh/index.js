@@ -88,13 +88,22 @@ export function buildTemplate(id, { sex = 'female', age = 'adult', detail = 1 } 
   let poly = cage.poly();
   let cageFaces = poly.faces.length;
   for (let i = 0; i < settings.levels; i++) poly = subdivide(poly);
+  // Two levels shade smoothly as they are; one level gets its normals from one level finer.
+  const extra = settings.levels < 2 ? 1 : 0;
+  const bodyNormals = extra ? limitNormals(poly, extra) : null;
   poly = toLimit(poly);
   const eyeCage = placeEyes(poly, cage, eyes, joints);
   cageFaces += eyeCage.faces.length;
   let eyePoly = eyeCage.poly();
   for (let i = 0; i < settings.levels; i++) eyePoly = subdivide(eyePoly);
+  let normals = null;
+  if (bodyNormals) {
+    normals = new Float32Array((poly.count + eyePoly.count) * 3);
+    normals.set(bodyNormals);
+    normals.set(limitNormals(eyePoly, 1), bodyNormals.length);
+  }
   poly = append(poly, toLimit(eyePoly));
-  const geometry = toGeometry(poly, cage, M, joints, { ...info, eyeCentres: eyes.centres }, look);
+  const geometry = toGeometry(poly, cage, M, joints, { ...info, eyeCentres: eyes.centres }, look, normals);
   return { geometry, joints, parents, bones: cage.bones, info, stats: { cageFaces, triangles: geometry.index.count / 3, vertices: poly.count, ms: performance.now() - t0 } };
 }
 
@@ -161,7 +170,40 @@ function append(a, b) {
   return { data, stride: a.stride, count: a.count + b.count, faces: [...a.faces, ...b.faces.map((f) => f.map((i) => i + a.count))] };
 }
 
-function toGeometry(poly, cage, M, joints, info, look) {
+/**
+ * Smooth normals for a subdivided mesh: positions alone are subdivided `extra` more times and moved to the limit
+ * surface, and the normals there are read back at the original vertices (subdivide() keeps their indices). This is
+ * cheap (3 floats a vertex instead of the whole data vector) and makes the one-level tiers shade like the two-level one.
+ */
+function limitNormals(poly, extra) {
+  const { data, stride, count } = poly;
+  const pos = new Float64Array(count * 3);
+  for (let v = 0; v < count; v++) for (let d = 0; d < 3; d++) pos[v * 3 + d] = data[v * stride + d];
+  let p = { data: pos, stride: 3, count, faces: poly.faces };
+  for (let i = 0; i < extra; i++) p = subdivide(p);
+  p = toLimit(p);
+  const P = p.data;
+  const acc = new Float64Array(p.count * 3);
+  for (const [a, b, c, d] of p.faces) {
+    // Quad normal: the cross product of its diagonals (twice its area, outward for counter-clockwise quads).
+    const ux = P[c * 3] - P[a * 3], uy = P[c * 3 + 1] - P[a * 3 + 1], uz = P[c * 3 + 2] - P[a * 3 + 2];
+    const vx = P[d * 3] - P[b * 3], vy = P[d * 3 + 1] - P[b * 3 + 1], vz = P[d * 3 + 2] - P[b * 3 + 2];
+    const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+    for (const k of [a, b, c, d]) {
+      acc[k * 3] += nx;
+      acc[k * 3 + 1] += ny;
+      acc[k * 3 + 2] += nz;
+    }
+  }
+  const out = new Float32Array(count * 3);
+  for (let v = 0; v < count; v++) {
+    const l = Math.hypot(acc[v * 3], acc[v * 3 + 1], acc[v * 3 + 2]) || 1;
+    for (let d = 0; d < 3; d++) out[v * 3 + d] = acc[v * 3 + d] / l;
+  }
+  return out;
+}
+
+function toGeometry(poly, cage, M, joints, info, look, normals) {
   const { data, stride, count, faces } = poly;
   const NB = cage.bones.length;
   const chOff = cage.chOffset;
@@ -315,7 +357,8 @@ function toGeometry(poly, cage, M, joints, info, look) {
   g.setAttribute('mark', new THREE.BufferAttribute(mark, 1));
   g.setAttribute('stripe', new THREE.BufferAttribute(stripe, 1));
   g.setAttribute('pat', new THREE.BufferAttribute(pat, 4));
-  g.computeVertexNormals();
+  if (normals) g.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
+  else g.computeVertexNormals();
   g.computeBoundingBox();
   g.computeBoundingSphere();
   return g;

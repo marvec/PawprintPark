@@ -41,7 +41,7 @@ const curls = (color) => ({ kind: PAT_SPOTS, color, size: 0.05, radius: 0.32, de
 
 /** Defaults per body plan: head pitch and where the eyes sit (MESH_LOOKS entries override them). */
 export const MESH_PLAN_DEFAULTS = {
-  hoof: { head: { pitch: 0.42 }, eye: { t: 0.3, ang: 0.42, fwd: 0.5 }, eyeScale: 1.7 },
+  hoof: { head: { pitch: 0.42 }, eye: { t: 0.22, ang: 0.38, fwd: 1.0 }, eyeScale: 2.5 },
   cat: { head: { pitch: 0.1 }, eye: { t: 0.5, ang: 0.32, fwd: 1.1 } },
   dog: { head: { pitch: 0.12 }, eye: { t: 0.42, ang: 0.4, fwd: 0.9 }, eyeScale: 1.5 },
   bear: { head: { pitch: 0.15 }, eye: { t: 0.42, ang: 0.42, fwd: 0.9 }, eyeScale: 1.5 },
@@ -74,8 +74,8 @@ const QUAD_MESH_LOOKS = {
   },
   'plains-zebra': {
     head: { pitch: 0.42 },
-    eye: { t: 0.3, ang: 0.42, fwd: 0.5 },
-    eyeScale: 1.75,
+    eye: { t: 0.22, ang: 0.38, fwd: 1.0 },
+    eyeScale: 2.5,
     ears: { kind: 'pointy', size: 0.14 },
     crest: 0.07,
     paint: {
@@ -86,6 +86,8 @@ const QUAD_MESH_LOOKS = {
         { color: 0x2a2725, field: (v) => 0.12 - v.SNOUT },
         tuft(0x1d1b1a, 0.2),
         { color: 0x1d1b1a, field: (v) => (v.RIDGE - 0.15) * 0.04 },
+        // A pale ring round each eye, so the eye reads against the black face stripes.
+        eyePatch(0xf5f2ea, 0.1),
         ...eyes(),
       ],
     },
@@ -93,8 +95,8 @@ const QUAD_MESH_LOOKS = {
   },
   'reticulated-giraffe': {
     head: { pitch: 0.42 },
-    eye: { t: 0.3, ang: 0.42, fwd: 0.5 },
-    eyeScale: 1.8,
+    eye: { t: 0.22, ang: 0.38, fwd: 1.0 },
+    eyeScale: 2.5,
     ears: { kind: 'side', size: 0.17 },
     crest: 0.04,
     paint: {
@@ -293,6 +295,10 @@ const QUAD_MESH_LOOKS = {
     },
   },
   'polar-bear': {
+    // The long neck comes out of the front of the body, not its top, and blends in over two rings.
+    neckY: 0.12,
+    neckZ: 1.15,
+    neckBlend: true,
     ears: { kind: 'round', size: 0.07 },
     paint: { base: 0xf2ead6, marks: [...eyes()] },
   },

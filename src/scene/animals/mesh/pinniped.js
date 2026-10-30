@@ -93,16 +93,31 @@ export function buildPinnipedCage(L, M, q) {
   const at = (al, up) => v3.add(end, v3.add(v3.mul(hdir, al), v3.mul(hup, up)));
   const crest = M.crest ?? 0;
   const crestShape = (co, si) => [0, si > 0.85 ? crest : 0];
-  const pads = (co, si) => [si < 0.2 ? sn.w * 0.12 : 0, si < -0.5 ? sn.h * 0.12 : 0];
+  // Pinniped faces: a round domed skull that runs straight into the neck (no stop), and a short, blunt muzzle with
+  // plump whisker pads. The pads are the lower side vertices of the muzzle rings pushed out and down, with the chin
+  // between them pulled up a little, so from the front the muzzle is two soft lobes under the nose.
+  const hw = hd.w * (M.headW ?? 1);
+  const pads = (k) => (co, si) => (si < -0.85 ? [0, -sn.h * 0.15 * k] : si < 0 && Math.abs(co) > 0.85 ? [sn.w * 0.2 * k, sn.h * 0.2 * k] : [0, 0]);
+  const padCh = undefined;
   const head = [
-    ['H0', -0.1 * hd.l, 0.05 * hd.h, 0.94 * hd.w, 0.94 * hd.h, { neck1: 0.3, head: 0.7 }, crest ? crestShape : undefined],
-    ['H1', 0.4 * hd.l, 0.1 * hd.h, 1.0 * hd.w, 1.0 * hd.h, { head: 1 }, crest ? crestShape : undefined],
-    ['H2', 0.85 * hd.l, 0.02 * hd.h, 0.86 * hd.w, 0.84 * hd.h, { head: 1 }],
-    ['S0', 1.05 * hd.l + 0.45 * sn.l, -0.12 * hd.h, 1.12 * sn.w, 1.05 * sn.h, { head: 1 }, pads],
-    ['S1', 1.05 * hd.l + 1.0 * sn.l, -0.14 * hd.h, 0.85 * sn.w, 0.8 * sn.h, { head: 1 }],
-    ['T', 1.05 * hd.l + 1.3 * sn.l, -0.12 * hd.h, 0.4 * sn.w, 0.38 * sn.h, { head: 1 }],
+    ['H0', -0.12 * hd.l, 0.04 * hd.h, 0.98 * hw, 0.98 * hd.h, { neck1: 0.3, head: 0.7 }, crest ? crestShape : undefined],
+    ['H1', 0.3 * hd.l, 0.14 * hd.h, 1.05 * hw, 1.04 * hd.h, { head: 1 }, crest ? crestShape : undefined],
+    ['H2', 0.72 * hd.l, 0.08 * hd.h, 0.92 * hw, 0.88 * hd.h, { head: 1 }],
+    ['S0', 0.95 * hd.l + 0.3 * sn.l, -0.14 * hd.h, 1.12 * sn.w, 1.0 * sn.h, { head: 1 }, pads(0.7), padCh],
+    ['S1', 0.95 * hd.l + 0.75 * sn.l, -0.16 * hd.h, 1.0 * sn.w, 0.86 * sn.h, { head: 1 }, pads(1), padCh],
+    ['T', 0.95 * hd.l + 1.0 * sn.l, -0.1 * hd.h, 0.55 * sn.w, 0.5 * sn.h, { head: 1 }],
   ];
-  for (const [name, al, up, a, bb, w, shape] of head) keys.push({ name, c: at(al, up), a, b: bb, w, shape, hold: name === 'H0', step: hd.l * (tier ? 0.25 : 0.6) });
+  for (const [name, al, up, a, bb, w, shape, ch] of head) keys.push({ name, c: at(al, up), a, b: bb, w, shape, ch, hold: name === 'H0', step: hd.l * (tier ? 0.25 : 0.6) });
+  // Whisker pads: two plump, paler lobes either side under the nose (islands of the same mesh, like the eyes).
+  {
+    const [, al, up, a, bb] = head.find((h) => h[0] === 'S1');
+    const right = [1, 0, 0];
+    for (const side of [1, -1]) {
+      // A box cage's limit surface is well inside the box, so the box is sized up.
+      const c = v3.add(at(al + sn.l * 0.05, up - bb * 0.32), v3.mul(right, side * a * 0.5));
+      cage.blob({ c, t: hdir, s: right, a: sn.w * 0.68, b: sn.h * 0.58, d: sn.l * 0.46, w: { head: 1 }, ch: { AUX: 1, PS: 0.6 } });
+    }
+  }
   const joints = {
     seed: [0, 0, 0],
     hips: [0, b.h * 0.9, -b.l * 0.35],
@@ -134,8 +149,9 @@ export function buildPinnipedCage(L, M, q) {
       const flat = [-pdir[2], 0, pdir[0]];
       specs = [
         { c: v3.add(fc, [side * f * 0.12, -f * 0.1, 0]), a: f * 0.34, b: f * 0.3, w: { chest: 0.4, [W.u]: 0.6 }, ch: { S: fS, ...fColor(-1) } },
-        { c: [x, lerp(fc[1], wrist[1], 0.55), fc[2] + f * 0.08], a: f * 0.26, b: f * 0.22, w: { [W.u]: 0.4, [W.l]: 0.6 }, ch: { S: fS, ...fColor(0.3) } },
-        { c: wrist, a: f * 0.3, b: f * 0.1, flat, w: { [W.l]: 0.4, [W.f]: 0.6 }, ch: { S: fS, ...fColor(1), LEG: 1 } },
+        { c: [x, lerp(fc[1], wrist[1], 0.55), fc[2] + f * 0.08], a: f * 0.26, b: f * 0.22, w: { [W.u]: 0.4, [W.l]: 0.6 }, ch: { S: fS, ...fColor(-1) } },
+        // The flipper colour starts just past the wrist, on the flat paddle (not round the arm like a sock).
+        { c: wrist, a: f * 0.3, b: f * 0.1, flat, w: { [W.l]: 0.4, [W.f]: 0.6 }, ch: { S: fS, ...fColor(-0.4), LEG: 1 } },
         { c: v3.add(wrist, v3.add(v3.mul(pdir, f * 0.45), [0, -f * 0.04, 0])), a: f * 0.36, b: f * 0.06, flat, w: { [W.f]: 1 }, ch: { S: fS, ...fColor(1), LEG: 1 } },
         { c: v3.add(wrist, v3.add(v3.mul(pdir, f * 0.85), [0, -f * 0.05, 0])), a: f * 0.24, b: f * 0.035, flat, w: { [W.f]: 1 }, ch: { S: fS, ...fColor(1), LEG: 1 } },
       ];
@@ -188,12 +204,17 @@ export function buildPinnipedCage(L, M, q) {
       const fi = cage.faceBetween(named.H0, after(spine, named.H0), side > 0 ? 0 : 2);
       const fc = faceCenter(cage, fi);
       joints[bone] = fc;
-      const t = v3.norm([side * 0.6, 0.2, -1]);
-      const e = hd.h * 0.32;
-      const w = { head: 0.2, [bone]: 0.8 };
+      // A small, pointed flap that leaves the side of the head and lies back and down along the skull, so it never
+      // sticks up, whatever the head does. Its flat side faces out (s along the skull's up axis, thin across).
+      const t = v3.norm([side * 0.35, -0.35, -0.87]);
+      const e = hd.h * 0.7;
+      const w = { head: 0.15, [bone]: 0.85 };
+      const ch = { EAR: 1, PS: 0.7 };
+      const back = v3.norm([side * 0.12, -0.3, -1]);
       cage.extrude(fi, [
-        { c: v3.add(fc, v3.mul(t, e * 0.35)), t, s: [0, 1, 0], a: e * 0.22, b: e * 0.14, w },
-        { c: v3.add(fc, v3.add(v3.mul(t, e * 0.85), [0, -e * 0.15, 0])), t, s: [0, 1, 0], a: e * 0.14, b: e * 0.06, w },
+        { c: v3.add(fc, v3.add(v3.mul(t, e * 0.18), [side * e * 0.04, 0, 0])), t, s: [0, 1, 0], a: e * 0.22, b: e * 0.09, w, ch },
+        { c: v3.add(fc, v3.add(v3.mul(back, e * 0.5), [side * e * 0.06, 0, 0])), t: back, s: [0, 1, 0], a: e * 0.15, b: e * 0.045, w, ch },
+        { c: v3.add(fc, v3.add(v3.mul(back, e * 0.78), [side * e * 0.03, 0, 0])), t: back, s: [0, 1, 0], a: e * 0.04, b: e * 0.02, w, ch },
       ]);
     }
   }
@@ -201,6 +222,8 @@ export function buildPinnipedCage(L, M, q) {
   const ey = M.eye ?? { t: 0.45, ang: 0.3, fwd: 0.55 };
   const eyeAlong = lerp(head[1][1], head[2][1], ey.t);
   const eyes = eyeSpec({ snout: head[head.length - 1][1] - eyeAlong, band: 0.16 * hd.l, size: (L.eyes?.size ?? hd.h * 0.2) * (M.eyeScale ?? 1.6), hdir, hup, ang: ey.ang, fwd: ey.fwd });
+  // A small nose pad on the tip of the muzzle, above the whisker pads (index.js places it on the limit surface).
+  eyes.nose = { dir: v3.norm(v3.add(hdir, v3.mul(hup, 0.45))), a: sn.w * 0.36, b: sn.h * 0.22, d: sn.h * 0.14, band: sn.l * 0.4 };
   return { cage, joints, parents, eyes, info: { kind: 'mesh-pinniped', plan: L.plan, upright, lift, legs: legInfo, legLen: b.h, bodyH: b.h, bodyL: b.l, neckLen: nk.len } };
 }
 

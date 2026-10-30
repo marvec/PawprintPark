@@ -187,6 +187,11 @@ export function buildLizardCage(L, M, q) {
   const neckLen = L.neck?.len ?? b.l * 0.25;
   const bones = ['seed', 'hips', 'chest', 'neck0', 'neck1', 'head', 'eyes', 'tail0', 'tail1', 'tail2', 'tail3'];
   const parents = { seed: null, hips: null, chest: 'hips', neck0: 'chest', neck1: 'neck0', head: 'neck1', eyes: 'head', tail0: 'hips', tail1: 'tail0', tail2: 'tail1', tail3: 'tail2' };
+  const tongue = M.tongue;
+  if (tongue) {
+    bones.push('tongue');
+    parents.tongue = 'head';
+  }
   legBones(bones, parents, 'chest', 'hips');
   const cage = new Cage(bones);
   const bodyY = b.h * 0.95 + lg.len * 0.15;
@@ -194,7 +199,7 @@ export function buildLizardCage(L, M, q) {
 
   // Ring spacing: the spine is long (most of it tail), so density follows the detail level rather than the size.
   const total = b.l * 2 + neckLen + hd.l * 1.6 + tl.len;
-  const rings = q.levels === 2 ? 26 : q.detail >= 0.7 ? 116 : 58;
+  const rings = q.levels === 2 ? 26 : q.detail >= 0.7 ? 116 : 52;
   const step = total / rings;
   const crest = M.crest;
   // Crest spikes stand one per ring gap along the back, so the back is at least that dense.
@@ -210,7 +215,7 @@ export function buildLizardCage(L, M, q) {
     const y = lerp(tailBase[1], tl.r * 0.3 + 0.004, Math.min(1, u * 2.2) ** 0.8);
     return [Math.sin(u * Math.PI) * curl * tl.len, Math.max(y, lerp(tl.r, Math.max(0.004, tl.r * 0.08), u ** 0.85) + 0.002), tailBase[2] - u * tl.len];
   };
-  const nT = Math.max(4, Math.round(tl.len / (step * (q.levels === 2 ? 1.5 : 1.2))));
+  const nT = Math.max(4, Math.round(tl.len / (step * (q.levels === 2 ? 2.4 : 1.2))));
   for (let i = nT; i >= 1; i--) {
     const u = i / nT;
     const r = lerp(tl.r, Math.max(0.004, tl.r * 0.08), u ** 0.85);
@@ -269,8 +274,14 @@ export function buildLizardCage(L, M, q) {
     // A small last ring rounds the nose off (the cap after it is tiny).
     ['T', 1.72 * hd.l, -0.18 * hd.h, 0.2 * hd.w, 0.18 * hd.h * flat, { head: 1 }],
   ];
+  // Eye turrets: the upper side vertices of the rings round the eyes bulge out and up, so the eyes sit proud of the
+  // head under a brow instead of flat in its side.
+  const turret = M.eyeTurret ?? 0;
+  const turretShape = (k) => (co, si) => (si > 0.2 && si < 0.6 ? [hd.w * turret * k, hd.h * turret * k * 0.9] : [0, 0]);
+  const eyeT = M.eye?.t ?? 0.55;
   for (const [name, al, up, a, bb, w] of head) {
     const cheek = name === 'H1' && M.cheek;
+    const tk = turret ? Math.max(0, 1 - Math.abs((al - lerp(head[1][1], head[2][1], eyeT)) / (0.5 * hd.l))) : 0;
     keys.push({
       name,
       c: at(al, up),
@@ -279,7 +290,7 @@ export function buildLizardCage(L, M, q) {
       w,
       // Cheek scale (iguanas): the jaw vertices of the ring behind the eyes.
       ch: cheek ? (co, si) => ({ AUX: Math.abs(co) > 0.85 && si < 0 ? 1 : -1 }) : {},
-      shape: name === 'H0' && dew ? dewShape(dew.size * 0.45) : undefined,
+      shape: name === 'H0' && dew ? dewShape(dew.size * 0.45) : tk > 0 ? turretShape(tk) : undefined,
       step: hd.l * (q.levels === 2 ? 0.6 : 0.25),
     });
   }
@@ -303,16 +314,45 @@ export function buildLizardCage(L, M, q) {
       const toe = (k) => v3.add(wrist, v3.add(v3.mul(footDir, r * k), [0, -r * 0.55 + r * 0.12 * (k > 1.5 ? 0 : 1), 0]));
       const W = { up: front ? 'chest' : 'hips', u: `upper${name}`, l: `lower${name}`, f: `foot${name}` };
       const ch = (y, extra = {}) => ({ S: fS, PS: 0.8, UNDER: -0.2, ...extra, ...(y < r * 1.2 ? { LEG: 1 } : {}) });
+      // The thigh leaves the body low on its side and runs out level, so it never shows above the back.
+      const thighY = fc[1] - r * 0.45;
       const specs = [
-        { c: [side * (out + r * 0.5), fc[1] - r * 0.15, fc[2]], a: r * 1.25, b: r * 1.35, w: { [W.up]: 0.4, [W.u]: 0.6 }, ch: ch(9) },
-        { c: [side * (out + len * 0.42), fc[1] - r * 0.4, fc[2] + f * len * 0.06], a: r * 1.0, b: r * 1.05, w: { [W.u]: 0.5, [W.l]: 0.5 }, ch: ch(9) },
+        { c: [side * (out + r * 0.5), thighY, fc[2]], a: r * 1.25, b: r * 1.15, w: { [W.up]: 0.4, [W.u]: 0.6 }, ch: ch(9) },
+        { c: [side * (out + len * 0.42), Math.min(fc[1] - r * 0.4, thighY - r * 0.2), fc[2] + f * len * 0.06], a: r * 1.0, b: r * 1.0, w: { [W.u]: 0.5, [W.l]: 0.5 }, ch: ch(9) },
         { c: [side * (out + len * 0.56), lerp(fc[1], r, 0.55), fc[2] + f * len * 0.1], a: r * 0.85, b: r * 0.9, w: { [W.l]: 1 }, ch: ch(9) },
         { c: wrist, a: r * 0.8, b: r * 0.8, w: { [W.l]: 0.5, [W.f]: 0.5 }, ch: ch(9) },
-        { c: toe(1.1), a: r * 1.25, b: r * 0.5, flat: footDir[0] ? [-footDir[2], 0, footDir[0]] : [1, 0, 0], w: { [W.f]: 1 }, ch: ch(0) },
-        { c: toe(2.3), a: r * 1.45, b: r * 0.32, flat: [-footDir[2], 0, footDir[0]], w: { [W.f]: 1 }, ch: ch(0, { TIP: 0.004 }) },
+        { c: toe(1.0), a: r * 1.2, b: r * 0.5, flat: footDir[0] ? [-footDir[2], 0, footDir[0]] : [1, 0, 0], w: { [W.f]: 1 }, ch: ch(0) },
+        // The palm ends short; the toes fan out from it.
+        { c: toe(1.6), a: r * 1.15, b: r * 0.36, flat: [-footDir[2], 0, footDir[0]], w: { [W.f]: 1 }, ch: ch(0, { TIP: r * (M.toeLen ?? 1.3) }) },
       ];
       const framed = limbFrames(densify(specs, q.levels === 2 ? 1 : 2), fc, [0, 0, 1]);
-      cage.extrude(fi, framed);
+      const [rA, rB] = cage.extrude(fi, framed).slice(-2);
+      // Toes: three, fanned out and extruded from the palm's front cap and its two edges, so they grow out of the
+      // foot with no seam. TIP runs to 0 at each toe's tip, for claws. One ring per toe on high (two subdivision
+      // levels round it into a tapering toe), two on the lower tiers.
+      const capFi = cage.faces.length - 1;
+      const toeLen = r * (M.toeLen ?? 1.3);
+      const lat = [footDir[2], 0, -footDir[0]];
+      const toeSpecs = (from, d, tl) => {
+        const tip = v3.add(from, v3.add(v3.mul(d, tl), [0, -r * 0.12, 0]));
+        const tch = (tipD) => ({ S: fS, PS: 0.8, UNDER: -0.2, LEG: 1, TIP: tipD });
+        return q.levels === 2
+          ? [{ c: tip, t: d, s: [0, 1, 0], a: r * 0.13, b: r * 0.1, w: { [W.f]: 1 }, ch: tch(0) }]
+          : [
+              { c: v3.lerp(from, tip, 0.5), t: d, s: [0, 1, 0], a: r * 0.24, b: r * 0.18, w: { [W.f]: 1 }, ch: tch(tl * 0.5) },
+              { c: tip, t: d, s: [0, 1, 0], a: r * 0.1, b: r * 0.08, w: { [W.f]: 1 }, ch: tch(0) },
+            ];
+      };
+      // Side faces first (finding them by direction needs the faces as they are before the cap is extruded).
+      const sideFaces = [1, -1].map((k) => [k, facingFace(cage, rA, rB, v3.mul(lat, k))]);
+      const sideCentres = sideFaces.map(([k, f2]) => [k, faceCenter(cage, f2), cage.faces[f2]]);
+      cage.extrude(capFi, toeSpecs(faceCenter(cage, capFi), footDir, toeLen));
+      for (const [k, centre, verts] of sideCentres) {
+        // Face indices shift as extrusions remove faces; find this one again by its corners.
+        const f2 = cage.faces.findIndex((f) => f.length === 4 && f.every((x, j) => x === verts[j]));
+        const d = v3.norm(v3.add(v3.mul(footDir, 0.85), v3.mul(lat, k * 0.7)));
+        cage.extrude(f2, toeSpecs(centre, d, toeLen * 0.8));
+      }
       joints[`upper${name}`] = [side * out * 0.7, fc[1], fc[2]];
       joints[`lower${name}`] = specs[1].c;
       joints[`foot${name}`] = specs[3].c;
@@ -345,11 +385,47 @@ export function buildLizardCage(L, M, q) {
     }
   }
 
+  // ---- Tongue (monitors): a long forked tongue out of the mouth, two thin prongs (islands) on their own bone, which
+  // animate-reptile.js scales to nothing (back into the mouth) between flicks.
+  if (tongue) {
+    const T = head[head.length - 1];
+    const mouth = at(T[1] - hd.l * 0.25, T[2] - hd.h * 0.1);
+    joints.tongue = mouth;
+    const len = hd.l * (tongue.len ?? 0.9);
+    const right = v3.norm(v3.cross(hdir, hup));
+    for (const side of [1, -1]) {
+      const d0 = v3.norm(v3.add(hdir, v3.mul(hup, -0.12)));
+      const fork = v3.add(mouth, v3.mul(d0, len * 0.62));
+      const tip = v3.add(fork, v3.add(v3.mul(d0, len * 0.38), v3.mul(right, side * len * 0.22)));
+      const r0 = hd.h * 0.17;
+      const ring = (c, t, rad) => cage.ring({ c, t, s: right, a: rad * 1.4, b: rad * 0.6, n: 4, w: { tongue: 1 }, ch: { TUSK: 1, PS: 0.6 } });
+      // Each prong overlaps the other along the shared stem, so together they read as one forked tongue.
+      cage.tube([ring(v3.add(mouth, v3.mul(right, side * r0 * 0.3)), d0, r0), ring(fork, d0, r0 * 0.8), ring(tip, v3.sub(tip, fork), r0 * 0.35)]);
+    }
+  }
+
   // ---- Eyes ----------------------------------------------------------------------------------------------------------
   const ey = M.eye ?? { t: 0.55, ang: 0.35, fwd: 0.25 };
   const eyeAlong = lerp(head[1][1], head[2][1], ey.t);
   const eyes = eyeSpec({ snout: head[head.length - 1][1] - eyeAlong, band: 0.18 * hd.l, size: (L.eyes?.size ?? hd.h * 0.2) * (M.eyeScale ?? 1.4), hdir, hup, ang: ey.ang, fwd: ey.fwd });
-  return { cage, joints, parents, eyes, info: { kind: 'mesh-lizard', plan: L.plan, legs: legInfo, legLen: lg.len, bodyH: b.h, bodyL: b.l, neckLen } };
+  // headLen lets markings scale with the head (eye lids).
+  return { cage, joints, parents, eyes, info: { kind: 'mesh-lizard', plan: L.plan, legs: legInfo, legLen: lg.len, bodyH: b.h, bodyL: b.l, neckLen, headLen: hd.l } };
+}
+
+/** The face between rings r1 and r2 (as bridged) whose centre lies furthest along `dir`. */
+function facingFace(cage, r1, r2, dir) {
+  const c = v3.mul([...r1, ...r2].map((i) => cage.pos(i)).reduce(v3.add), 1 / (r1.length * 2));
+  let best = -1;
+  let bestD = -Infinity;
+  for (let k = 0; k < r1.length; k++) {
+    const fi = cage.faceBetween(r1, r2, k);
+    const d = v3.dot(v3.sub(faceCenter(cage, fi), c), dir);
+    if (d > bestD) {
+      bestD = d;
+      best = fi;
+    }
+  }
+  return best;
 }
 
 /** The bone weights at a face's centre (the average of its corners). */

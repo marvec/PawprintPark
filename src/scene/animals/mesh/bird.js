@@ -45,7 +45,7 @@ const TAILS = {
   fan: { path: [[0, 0.25, -0.2], [0, 0.65, -0.45], [0, 0.95, -0.6]], a: [0.1, 0.09, 0.05], b: [0.32, 0.46, 0.26], flat: 'x' },
   // Rooster: tall arched sickle feathers.
   sickle: { path: [[0, 0.25, -0.12], [0, 0.62, -0.3], [0, 0.78, -0.6], [0, 0.55, -0.88], [0, 0.3, -0.98]], a: [0.07, 0.06, 0.05, 0.04, 0.015], b: [0.16, 0.2, 0.18, 0.13, 0.04], flat: 'x' },
-  // Macaw: long, flat, pointed, hanging down behind.
+  // Macaw: long, flat, pointed, hanging down behind (angled to reach just above the ground: see below).
   long: { path: [[0, -0.12, -0.2], [0, -0.4, -0.45], [0, -0.62, -0.72], [0, -0.72, -0.98]], a: [0.08, 0.075, 0.055, 0.012], b: [0.03, 0.022, 0.016, 0.006], flat: 'x' },
   // Ostrich: a fluffy plume.
   plume: { path: [[0, 0.15, -0.2], [0, 0.3, -0.45], [0, 0.36, -0.7]], a: [0.5, 0.55, 0.2], b: [0.38, 0.42, 0.14], flat: 'x' },
@@ -78,8 +78,9 @@ export function buildBirdCage(L, M, q) {
   const hd = L.head;
   const bk = L.beak;
   const penguin = L.plan === 'penguin';
-  const pitch = L.pitch ?? 0.15;
-  const hipDrop = L.hipDrop ?? 0.55;
+  // MESH_LOOKS can override the stance: a perching parrot stands more upright than the species look's pitch.
+  const pitch = M.pitch ?? L.pitch ?? 0.15;
+  const hipDrop = M.hipDrop ?? L.hipDrop ?? 0.55;
   const bodyY = lg.len + b.h * hipDrop;
   const dir = [0, Math.sin(pitch), Math.cos(pitch)];
   const up = [0, Math.cos(pitch), -Math.sin(pitch)];
@@ -102,9 +103,24 @@ export function buildBirdCage(L, M, q) {
   // ---- Spine: body, neck, head, beak ---------------------------------------------------------------------------------
   const keys = [];
   const rings = BODY[penguin ? 'penguin' : 'walk'];
+  // Loose plumage (ostrich): ring vertices alternate in and out, staggered ring to ring, so the body subdivides into
+  // soft feather lumps; the lower vertices hang down further on every other ring, a scalloped skirt.
+  const pl = M.plumage;
+  let parity = 0;
+  const plumage = () => {
+    const flip = (parity++ % 2) * 2 - 1;
+    return (co, si) => {
+      const j = Math.round((Math.atan2(si, co) - Math.PI / 8) / (Math.PI / 4));
+      const e = Math.min(b.w, b.h) * pl.lumps * flip * (j % 2 ? 1 : -1);
+      // Scallops both along the body (ring to ring) and around it (vertex to vertex).
+      const skirt = si < -0.3 ? b.h * pl.skirt * -si * (flip > 0 ? 1 : 0.35) * (j % 2 ? 1 : 0.45) : 0;
+      return [e, e + skirt];
+    };
+  };
   for (const r of rings) {
     const hipW = clamp01((0.35 - r.t) / 0.7);
-    keys.push({ name: r.name, hold: r.hold, part: 'body', c: bodyAt(r.t, r.y), a: b.w * r.a, b: b.h * r.b, w: { hips: hipW, chest: 1 - hipW } });
+    const shape = pl && r.t > -0.95 && r.t < 0.6 ? plumage() : undefined;
+    keys.push({ name: r.name, hold: r.hold, part: 'body', c: bodyAt(r.t, r.y), a: b.w * r.a, b: b.h * r.b, w: { hips: hipW, chest: 1 - hipW }, shape });
   }
   // Neck: a straight stalk at an angle, or a curve (flamingo).
   const nRoot = bodyAt(nk.z ?? 0.75, (nk.y ?? 0.45) * (penguin ? 1 : 1));
@@ -257,24 +273,40 @@ export function buildBirdCage(L, M, q) {
     const x = side * Math.max(b.w * 0.4, Math.abs(fc[0]) * 0.75);
     const z = fc[2];
     const hipY = lg.len;
-    const thighR = lg.thigh?.r ?? Math.max(lg.r * 2.2, b.w * 0.24);
     const thighLen = lg.thigh?.len ?? Math.max(b.h * 0.45, hipY - bodyBottom + b.h * 0.15);
-    const kneeY = Math.max(lg.r * 3, Math.min(hipY - thighLen * 0.9, bodyBottom + lg.r * 1.5));
+    // Drumsticks (ostrich): the bare thigh hangs out below the body instead of hiding in it.
+    const out = M.drumstick ? thighLen * M.drumstick : 0;
+    const kneeY = Math.max(lg.r * 3, Math.min(hipY - thighLen * 0.9, bodyBottom + lg.r * 1.5) - out);
+    const thighR = lg.thigh?.r ?? Math.max(lg.r * 2.2, b.w * 0.24);
     const ankleY = Math.max(lg.r * 1.6, toe * 0.25);
     const w = (wb, wu, wl, wf) => ({ hips: wb, [`upper${name}`]: wu, [`lower${name}`]: wl, [`foot${name}`]: wf });
+    // Bones: upper = thigh and drumstick down to the heel (the joint that shows, halfway down the bare leg, bending
+    // backwards), lower = the shank from heel to ankle, foot = the toes. So a folded leg bends at the heel, as birds'
+    // do.
+    const heelY = lerp(kneeY, ankleY, 0.5);
+    // Drumsticks: out of the plumage the bare thigh swells, then narrows hard into the knee.
+    const thigh = out
+      ? [
+          { c: [x, bodyBottom + b.h * 0.05, z], a: thighR * 0.95, b: thighR, w: w(0.2, 0.8, 0, 0), ch: { LEG: -0.5 }, hold: true },
+          { c: [x, lerp(bodyBottom, kneeY, 0.5), z + thighR * 0.2], a: thighR * 1.2, b: thighR * 1.4, w: w(0, 1, 0, 0), ch: { LEG: -0.5 }, hold: true },
+          { c: [x, lerp(bodyBottom, kneeY, 0.85), z], a: thighR * 0.55, b: thighR * 0.6, w: w(0, 1, 0, 0), ch: { LEG: -0.5 }, hold: true },
+        ]
+      : [{ c: [x, lerp(fc[1], kneeY, 0.55), z], a: thighR * 0.95, b: thighR, w: w(0, 1, 0, 0), ch: { LEG: -0.5 } }];
     const legKeys = [
       { c: [fc[0] * 0.92, fc[1] - b.h * 0.05, z], a: thighR * 1.05, b: thighR * 1.1, w: w(0.45, 0.55, 0, 0), ch: { LEG: -1 } },
       // LEG: -1 on the body, -0.5 on the (feathered) thigh, 1 on the bare leg and toes.
-      { c: [x, lerp(fc[1], kneeY, 0.55), z], a: thighR * 0.95, b: thighR, w: w(0, 1, 0, 0), ch: { LEG: -0.5 } },
-      { c: [x, kneeY + lg.r * 0.6, z - lg.r * 0.4], a: lg.r * 1.25, b: lg.r * 1.3, w: w(0, 0.5, 0.5, 0), ch: { LEG: 1 }, hold: true },
-      { c: [x, lerp(kneeY, ankleY, 0.5), z - lg.r * 0.3], a: lg.r, b: lg.r, w: w(0, 0, 1, 0), ch: { LEG: 1 } },
+      ...thigh,
+      { c: [x, kneeY + lg.r * 0.6, z - lg.r * 0.4], a: lg.r * 1.25, b: lg.r * 1.3, w: w(0, 1, 0, 0), ch: { LEG: 1 }, hold: true },
+      // (resample adds rings between these on long legs.)
+      { c: [x, heelY, z - lg.r * 0.3], a: lg.r * 1.12, b: lg.r * 1.15, w: w(0, 0.5, 0.5, 0), ch: { LEG: 1 } },
       { c: [x, ankleY + lg.r * 0.4, z], a: lg.r * 1.1, b: lg.r * 1.1, w: w(0, 0, 0.5, 0.5), ch: { LEG: 1 }, hold: true },
       { c: [x, ankleY - lg.r * 0.2, z], a: lg.r * 1.15, b: lg.r * 1.15, w: w(0, 0, 0, 1), ch: { LEG: 1 } },
     ];
-    const legRings = cage.extrude(fi, resample(legKeys, q.legStep), { cap: true });
+    // Short legs (parrots, penguins) need no rings beyond their key rings.
+    const legRings = cage.extrude(fi, resample(legKeys, lg.len < b.h ? Infinity : q.legStep), { cap: true });
     joints[`upper${name}`] = [x, hipY, z];
-    joints[`lower${name}`] = legKeys[2].c;
-    joints[`foot${name}`] = legKeys[4].c;
+    joints[`lower${name}`] = legKeys[legKeys.length - 3].c;
+    joints[`foot${name}`] = legKeys[legKeys.length - 2].c;
     const ankle = legRings[legRings.length - 1];
     const above = legRings[legRings.length - 2];
     const footW = { [`foot${name}`]: 1 };
@@ -314,11 +346,15 @@ export function buildBirdCage(L, M, q) {
   }
 
   // ---- Wings (flippers): flat, folded back along the body's sides -------------------------------------------------------
-  const wg = L.wings ?? {};
+  const wg = { ...L.wings, ...M.wing };
   const wk = M.wingScale ?? 1;
   const wLen = (wg.len ?? b.l * 0.95) * wk;
   const thick = b.w * (wg.thick ?? 0.16);
   const depth = b.h * (wg.depth ?? 0.62) * wk;
+  // Plumes (ostrich): the wing hangs lower at the back, and its trailing rings alternate wider and narrower, so the
+  // edge subdivides into soft feather tips.
+  const droop = wg.droop ?? 0;
+  const plume = wg.plume ?? 0;
   const shT = rings.find((rr) => rr.name === 'shA').t;
   for (const side of [1, -1]) {
     const bone = side > 0 ? 'wingR' : 'wingL';
@@ -328,17 +364,22 @@ export function buildBirdCage(L, M, q) {
     // Along the wing: s = 0 at the shoulder to 1 at the tip. Its centre follows the body's side, a little high.
     const prof = penguin
       ? [[0.08, 0.5, 0.55], [0.3, 1, 1], [0.65, 0.85, 0.8], [0.9, 0.45, 0.55], [1.02, 0.12, 0.3]]
-      : [[0.06, 0.45, 0.55], [0.25, 1, 1], [0.6, 0.82, 0.8], [0.88, 0.4, 0.5], [1.04, 0.08, 0.25]];
+      : plume
+        ? [[0.06, 0.45, 0.55], [0.22, 1, 1], [0.42, 1.05, 1.1], [0.6, 0.8, 0.95], [0.76, 1.0, 0.9], [0.9, 0.6, 0.7], [1.04, 0.3, 0.45]]
+        : [[0.06, 0.45, 0.55], [0.25, 1, 1], [0.6, 0.82, 0.8], [0.88, 0.4, 0.5], [1.04, 0.08, 0.25]];
     const specs = prof.map(([s, ka, kb], i) => {
       const t = shT - (s * wLen) / b.l;
-      const sideX = bodyHalfWidth(Math.max(-1, t)) * (penguin ? 0.92 : 0.95) + thick * (0.45 + 0.4 * Math.min(1, s * 3));
-      const c = v3.add(bodyAt(t, penguin ? 0 : 0.12 - s * 0.15), [side * sideX, 0, 0]);
+      // Tucked plumes (ostrich) lie against the flank instead of standing off it.
+      const tuck = wg.tuck ?? 0;
+      const sideX = bodyHalfWidth(Math.max(-1, t)) * (penguin ? 0.92 : lerp(0.95, 0.8, tuck)) + thick * lerp(0.45 + 0.4 * Math.min(1, s * 3), 0.3, tuck);
+      const c = v3.add(bodyAt(t, penguin ? 0 : 0.12 - s * 0.15 - droop * s * s), [side * sideX, 0, 0]);
       return {
         c,
         t: v3.mul(dir, -1),
         s: up,
         a: depth * ka,
         b: thick * kb,
+        shape: plume && i > 1 ? (co) => [depth * plume * (i % 2 ? 1 : -0.5) * (co < 0 ? 1.4 : 0.6), 0] : undefined,
         w: i === 0 ? { chest: 0.4, [bone]: 0.6 } : { [bone]: 1 },
         ch: { WING: i === 0 ? -0.2 * wLen : s * wLen },
       };
@@ -350,20 +391,30 @@ export function buildBirdCage(L, M, q) {
   const tl = L.tail ?? { kind: 'short' };
   {
     const T = TAILS[tl.kind] ?? TAILS.short;
-    const len = tl.len ?? b.l * 0.3;
+    const len = (tl.len ?? b.l * 0.3) * (M.tailScale ?? 1);
     const fc = faceCentre(cage.faces.indexOf(tailFace));
     // Penguins: out of the lower back, pointing back and down.
     // Hanging tails stop just above the ground (a macaw standing on it lays its tail along it).
     const minY = Math.min(...T.path.map((p) => p[1]));
     const drop = minY < 0 ? Math.min(1, (fc[1] - 0.6 * T.b[T.b.length - 2] * len - 0.004) / (-minY * len)) : 1;
-    const pts = T.path.map(([x, y, z]) => v3.add(fc, penguin ? [x * len, -Math.abs(z) * len * 0.6 - y * len * 0.2, z * len * 0.8] : [x * len, y * len * (y < 0 ? drop : 1), z * len]));
+    let pts = T.path.map(([x, y, z]) => v3.add(fc, penguin ? [x * len, -Math.abs(z) * len * 0.6 - y * len * 0.2, z * len * 0.8] : [x * len, y * len * (y < 0 ? drop : 1), z * len]));
+    if (tl.kind === 'long') {
+      // A hanging tail on a bird standing on the ground: a straight line down and back from the rump, its tip just
+      // clear of the ground (not lying along it).
+      const sinA = Math.min(0.9, Math.max(0.2, (fc[1] - 0.012) / len));
+      const d = [0, -sinA, -Math.sqrt(1 - sinA * sinA)];
+      pts = T.path.map((_, i) => v3.add(fc, v3.mul(d, (len * (0.2 + (0.8 * i) / (T.path.length - 1))))));
+    }
     const tipLen = pts.reduce((s, p, i) => s + v3.len(v3.sub(p, i ? pts[i - 1] : fc)), 0);
     let d = 0;
-    const wideK = T.widthOfBody ? b.w / len : 1;
+    // M.tailWidth: the tail's half width at its base (× the body's half width), tapering to the tip.
+    const wideK = M.tailWidth ? (b.w * M.tailWidth) / (T.a[0] * len) : T.widthOfBody ? b.w / len : 1;
+    // M.tailDepth: its half thickness at the base (× the body's half height); a feather tail stays flat but not thin.
+    const deepK = M.tailDepth ? (b.h * M.tailDepth) / (T.b[0] * len) : 1;
     const specs = pts.map((c, i) => {
       d += v3.len(v3.sub(c, i ? pts[i - 1] : fc));
       const f = i / (pts.length - 1);
-      return { c, s: [1, 0, 0], a: T.a[i] * len * wideK, b: T.b[i] * len, w: f < 0.5 ? { hips: 0.4 - f * 0.6, tail0: 0.6 + f * 0.6 } : { tail0: 1.5 - f, tail1: f - 0.5 }, ch: { TAIL: tipLen - d } };
+      return { c, s: [1, 0, 0], a: T.a[i] * len * wideK, b: T.b[i] * len * deepK, w: f < 0.5 ? { hips: 0.4 - f * 0.6, tail0: 0.6 + f * 0.6 } : { tail0: 1.5 - f, tail1: f - 0.5 }, ch: { TAIL: tipLen - d } };
     });
     // Rings: tangents from the path.
     for (let i = 0; i < specs.length; i++) specs[i].t = v3.sub(specs[Math.min(specs.length - 1, i + 1)].c, i ? specs[i - 1].c : fc);
@@ -377,18 +428,32 @@ export function buildBirdCage(L, M, q) {
     // Overlapping lobes along the crown, the middle ones tallest; they merge into one serrated comb.
     const k = L.comb.size ?? 1;
     const n = 4;
-    for (let i = 0; i < n; i++) {
+    if (dense) {
+      // Subdivided once, separate lobes read as beads: loft one comb instead, a blade along the crown whose ring
+      // heights alternate peak and notch, so its top edge is serrated.
+      const PEAK = [0.8, 1, 0.95, 0.7];
+      const specs = [];
+      for (let j = 0; j <= 2 * n; j++) {
+        const i = j / 2;
+        const al = r * (0.4 + 0.12 - i * 0.24);
+        const h = r * 0.36 * k * (j % 2 ? PEAK[Math.floor(i)] * 1.15 : 0.55);
+        const rise = j === 0 || j === 2 * n ? 0.4 : 1;
+        // The blade's base sits just inside the crown; the limit surface pulls rings in, so they are made generous.
+        specs.push({ c: at(al, r * sq * 0.86 + h * rise * 0.5), t: v3.mul(hdir, -1), s: [1, 0, 0], a: r * 0.13 * Math.sqrt(k), b: h * rise * 0.8, n: 8, w: { head: 1 }, ch: { TIP: 0 } });
+      }
+      cage.tube(specs.map((sp) => cage.ring(sp)));
+    } else for (let i = 0; i < n; i++) {
       const al = r * (0.4 - i * 0.24);
       const h = r * 0.3 * k * [0.8, 1, 0.95, 0.7][i];
       const c = at(al, r * sq * 0.78 + h * 0.55);
-      cage.blob({ c, t: hdir, s: [1, 0, 0], a: r * 0.1 * Math.sqrt(k), b: h, d: r * 0.16 * k, w: { head: 1 }, ch: { TIP: 0 } });
+      lobe(cage, { c, t: hdir, a: r * 0.1 * Math.sqrt(k), b: h, d: r * 0.16 * k, w: { head: 1 }, ch: { TIP: 0 } }, dense);
     }
   }
   if (L.wattle) {
     const k = L.wattle.size ?? 1;
     for (const s of [1, -1]) {
       const c = v3.add(base, v3.add(v3.mul(hdir, -r * 0.12), v3.add(v3.mul(hup, -r * 0.42 * k), [s * r * 0.11, 0, 0])));
-      cage.blob({ c, t: hdir, s: [1, 0, 0], a: r * 0.1 * k, b: r * 0.26 * k, d: r * 0.14 * k, w: { head: 1 }, ch: { TIP: 0, SNOUT: 4 } });
+      lobe(cage, { c, t: hdir, a: r * 0.1 * k, b: r * 0.26 * k, d: r * 0.14 * k, w: { head: 1 }, ch: { TIP: 0, SNOUT: 4 } }, dense);
     }
   }
 
@@ -411,6 +476,17 @@ export function buildBirdCage(L, M, q) {
     eyes,
     info: { kind: 'mesh-bird', plan: L.plan, legs: legInfo, legLen: lg.len, bodyH: b.h, bodyL: b.l, neckLen: nk.len, bodyLift: bodyBottom, penguin },
   };
+}
+
+/**
+ * A closed lobe (comb, wattle). Subdivided twice, a box cage is round enough; subdivided once it stays boxy, so the
+ * dense cage is three eight-sided rings (fuller in the middle) instead.
+ */
+function lobe(cage, { c, t, a, b, d, w, ch }, dense) {
+  if (!dense) return cage.blob({ c, t, s: [1, 0, 0], a, b, d, w, ch });
+  const T = v3.norm(t);
+  const rs = [-0.85, 0, 0.85].map((k, i) => cage.ring({ c: v3.add(c, v3.mul(T, d * k)), t: T, s: [1, 0, 0], a: a * (i === 1 ? 1.12 : 0.8), b: b * (i === 1 ? 1.12 : 0.8), n: 8, w, ch }));
+  cage.tube(rs);
 }
 
 export { CHANNELS };

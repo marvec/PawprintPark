@@ -7,6 +7,16 @@ import * as THREE from 'three';
 import { resolveLook } from '../src/scene/animals/index.js';
 import { animate, buildAnimal, buildTemplate, createMeshAnimalMaterial } from '../src/scene/animals/mesh/index.js';
 
+/** Vertices painted (mark > 0) with a marking colour. */
+const painted = (id, opts, hex) => {
+  const g = buildTemplate(id, opts).geometry;
+  const c = g.getAttribute('color3').array;
+  const m = g.getAttribute('mark');
+  let n = 0;
+  for (let i = 0; i < m.count; i++) if (m.getX(i) > 0 && c[i * 3] === (hex >> 16) && c[i * 3 + 1] === ((hex >> 8) & 255) && c[i * 3 + 2] === (hex & 255)) n++;
+  return n;
+};
+
 const material = createMeshAnimalMaterial();
 const worldPos = (bone) => {
   bone.updateWorldMatrix(true, false);
@@ -39,6 +49,13 @@ describe('single-mesh pinnipeds', () => {
     animate(rig, 'sleep', 0);
     expect(worldPos(rig.bones.head).y).toBeLessThan(awake - 0.1);
   });
+
+  test('pinniped faces: whisker pads, a nose pad, ear flaps on sea lions only', () => {
+    expect(painted('california-sea-lion', { sex: 'female' }, 0xb08e6a)).toBeGreaterThan(40); // whisker pads
+    expect(painted('california-sea-lion', { sex: 'female' }, 0x3a2a20)).toBeGreaterThan(10); // nose
+    expect(buildAnimal('california-sea-lion', { material }).rig.bones.earL).toBeDefined();
+    expect(buildAnimal('harbour-seal', { material }).rig.bones.earL).toBeUndefined();
+  });
 });
 
 describe('single-mesh lizards', () => {
@@ -57,6 +74,27 @@ describe('single-mesh lizards', () => {
     for (let i = 0; i < pos.count; i++) if (Math.abs(pos.getZ(i)) < L.body.l * 0.5) backTop = Math.max(backTop, pos.getY(i));
     // Ground to the top of the body is about legs + body height; spikes stand well above that.
     expect(backTop).toBeGreaterThan(L.body.h * 2 + L.legs.len * 0.15);
+  });
+
+  test('feet have toes with dark claws at their tips', () => {
+    // Komodo claws: a marking at the toe tips (TIP → 0), on every foot.
+    expect(painted('komodo-dragon', {}, 0x2e2a26)).toBeGreaterThan(4 * 3 * 4);
+  });
+
+  test('the Komodo dragon flicks a forked yellow tongue: out while eating, back in the mouth asleep', () => {
+    expect(painted('komodo-dragon', {}, 0xe6c64a)).toBeGreaterThan(20);
+    const { rig } = buildAnimal('komodo-dragon', { material });
+    animate(rig, 'eat', 1);
+    expect(rig.bones.tongue.scale.z).toBeGreaterThan(0.4);
+    animate(rig, 'sleep', 1);
+    expect(rig.bones.tongue.scale.z).toBeLessThan(0.01);
+    // Idle flicks are timed so a still frame at t = 1 shows the tongue out.
+    animate(rig, 'idle', 1);
+    expect(rig.bones.tongue.scale.z).toBeGreaterThan(0.8);
+  });
+
+  test('lizard eyes sit on raised turrets with a lid ring round them', () => {
+    expect(painted('green-iguana', {}, 0x86b85a)).toBeGreaterThan(10);
   });
 
   test('walking swings the tail from side to side', () => {

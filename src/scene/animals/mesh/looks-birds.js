@@ -29,7 +29,7 @@ export const BIRD_MESH_LOOKS = {
     eyeScale: 1.35,
     paint: {
       base: 0xa8764a,
-      marks: [base(0xa8764a), neck(0xb98a5c), wings(0x8a5a34), tail(0x7a5434), legs(0xe8b44a), face(0xd6261f), comb(0xd6261f), beak(0xe8b44a), ...eyes()],
+      marks: [base(0xa8764a), { color: 0xb98a5c, field: (v) => Math.min((v.AUX - 0.35) * 0.5, (0.25 - v.UNDER) * 0.3) }, wings(0x8a5a34), tail(0x7a5434), legs(0xe8b44a), face(0xd6261f), comb(0xd6261f), beak(0xe8b44a), ...eyes()],
     },
     male: {
       paint: {
@@ -57,8 +57,12 @@ export const BIRD_MESH_LOOKS = {
   },
   'common-ostrich': {
     head: { pitch: 0.05 },
-    // Big, loose wing plumes.
-    wingScale: 1.45,
+    // Loose, lumpy plumage with a ragged lower edge; big drooping wing plumes; a fluffy tail; bare drumsticks.
+    plumage: { lumps: 0.2, skirt: 0.55 },
+    wing: { thick: 0.38, depth: 0.9, droop: 0.7, plume: 0.5, tuck: 1 },
+    wingScale: 1.3,
+    tailScale: 1.6,
+    drumstick: 2,
     eye: { t: 0.15, ang: 0.15, fwd: 0.3 },
     eyeScale: 1.5,
     paint: {
@@ -88,7 +92,17 @@ export const BIRD_MESH_LOOKS = {
     },
   },
   'scarlet-macaw': {
-    head: { pitch: 0.15 },
+    // Perched upright: the body nearly vertical, the head level on top, the tail hanging down behind.
+    pitch: 1.25,
+    hipDrop: 1.12,
+    // The tail hangs down behind: shorter than the species look's, so it can angle down from the rump.
+    tailScale: 0.62,
+    head: { pitch: 0.2 },
+    // Folded wings lie on the flanks, down to the tail; the tail is broad at the base (about the rump's width) and
+    // tapers to a point.
+    wing: { thick: 0.12, tuck: 0.4 },
+    tailWidth: 0.75,
+    tailDepth: 0.28,
     // The bare white face, from the eye to the beak.
     face: { along: 0.35, up: -0.08, ra: 0.72, rb: 0.62 },
     eye: { t: 0.15, ang: 0.2, fwd: 0.3 },
@@ -100,12 +114,13 @@ export const BIRD_MESH_LOOKS = {
         // Wings: red shoulders, a yellow band, blue flight feathers.
         { color: 0xf2c230, field: (v) => v.WING - 0.055 },
         { color: 0x2456b8, field: (v) => v.WING - 0.105 },
-        { color: 0x2456b8, field: (v) => 0.26 - v.TAIL },
+        // The tail turns blue over its outer half.
+        { color: 0x2456b8, field: (v) => 0.14 - v.TAIL },
         legs(0x5a5452),
         face(0xf4f0ea),
         beak(0xefe6d4),
         { color: 0x1f1c1b, field: (v) => Math.min(v.BEAK * 0.05, (v.UNDER - 0.25) * 0.05) },
-        ...eyes(0xe8d27a),
+        ...eyes(),
       ],
     },
     baby: {
@@ -132,8 +147,9 @@ export const BIRD_MESH_LOOKS = {
       base: 0x1d1c1e,
       marks: [
         base(0x1d1c1e),
-        // A white front up to the throat (not on the flippers).
-        { color: 0xf6f4ef, field: (v) => Math.min(v.UNDER + 0.2, 0.15 - v.AUX, -v.WING - 0.1) },
+        // A white front up to the throat, one clean curve; the flippers are painted black over it.
+        { color: 0xf6f4ef, field: (v) => Math.min((v.UNDER - 0.12) * 0.3, (0.15 - v.AUX) * 0.3) },
+        { color: 0x1d1c1e, field: (v) => v.WING + 0.02 },
         // The white band over the crown, from eye to eye.
         { color: 0xf6f4ef, field: (v) => Math.min(-v.UNDER - 0.45, 0.016 - Math.abs(v.SNOUT - 0.145)) },
         legs(0xf08a3a),

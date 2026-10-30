@@ -9,6 +9,19 @@ const cos = Math.cos;
 /** Lizards: an S-wave down the spine and tail, sprawling legs that swing round their shoulders. */
 export function animateLizard(rig, pose, t, amp) {
   const B = rig.bones;
+  // Monitors flick the tongue out now and then; between flicks it is back in the mouth (scaled to nothing).
+  if (B.tongue) {
+    // While eating (foraging) it tastes the air continuously. Flicks are timed on the caller's clock (without the
+    // rig's phase), with a flick out at t = 1 (still screenshots); each individual's period differs a little, so a
+    // group drifts out of step after that.
+    const raw = t - (rig.phase ?? 0);
+    const every = (pose === 'walk' ? 2.1 : 3.2) + ((rig.phase ?? 0) % 1) * 0.7;
+    const p = (((raw - 0.75) % every) + every) % every;
+    const out = pose === 'eat' ? 0.75 + 0.25 * sin(t * 14) : pose !== 'sleep' && p < 0.5 ? Math.sin((p / 0.5) * Math.PI) : 0;
+    B.tongue.scale.setScalar(Math.max(0.001, out));
+    // With the head lowered to eat, the tongue tilts back up so it flicks over the ground, not into it.
+    B.tongue.rotation.x += out * Math.sin(t * 40) * 0.08 - (pose === 'eat' ? 0.5 : 0);
+  }
   const { legLen, bodyH } = rig.size;
   const sway = (ph, k) => ['tail0', 'tail1', 'tail2', 'tail3'].forEach((n, i) => (B[n].rotation.y += sin(ph - i * 0.9) * k * (0.6 + i * 0.25) * amp));
   if (pose === 'idle') {
