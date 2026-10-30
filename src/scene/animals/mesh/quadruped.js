@@ -743,7 +743,9 @@ function ruff(cage, { head, edge, headLen, U, neck, shoulder, back, out, hang, n
     // How far back over the shoulders each section reaches: an uneven rhythm, mirrored left and right.
     const reach = REACH[Math.min(i, n - i) % REACH.length];
     const pts = [
-      [onHead(e, 0.86, 0), { head: 1 }, 0],
+      // The edge point sits deep in the head and a little ahead of the visible edge: subdivision pulls the surface
+      // back towards its neighbours, and a shallow edge left a dark crevice between the face and the hair.
+      [onHead(e + 0.12 * headLen, 0.62, 0), { head: 1 }, 0],
       [onHead(e - 0.12 * headLen, 1, out * 0.15 * k), { head: 1 }, 0.1],
       [onHead(e - 0.55 * headLen, 1, out * k), { head: 0.85, neck1: 0.15 }, 0.5],
       [v3.add(around(neck.c, neck.r + out * (0.85 + 0.2 * top) * k2, neck.r + out * 0.75 * k2), [0, -low * hang * 0.6, low * out * 0.6]), { neck1: 0.4, neck0: 0.6 }, 0.8],

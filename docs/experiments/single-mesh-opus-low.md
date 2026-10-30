@@ -320,6 +320,9 @@ lion).
     drawn large. A thin layer just over the coat carries the hair out to that edge; without it the surface dived
     under the skin early.
   - The lower sections hang down the chest, in front of and between the forelegs, as dark as in the photos.
+  - The edge's cage point sits deep in the head, a little ahead of the visible edge. Subdivision pulls the surface back
+    towards its neighbours, and a shallow edge left a dark crevice between the face and the hair
+    (`lion-face-closeup.png`).
   - The ears grow on a stalk hidden in the hair, so their tops show above the mane. The face and neck no longer bulge
     for the mane.
   - Hair paint: golden at the face, dark at the back and chest.
