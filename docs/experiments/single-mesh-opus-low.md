@@ -305,6 +305,59 @@ Everything listed as weak at the end of round 2 was worked on:
 - The macaw has a soft fold where the wing meets the back.
 - Under heavy machine load the busiest variants build in 60–90 ms (target: under 100 ms).
 
+### Round 4: anatomy (mane, hind legs) and lighter meshes
+
+Feedback from reference photos: a lion's mane grows like human hair, starting round the face (sideburns in front of
+the ears), and the hind legs run straight down from the rump. Shots in `round4/` (`lion-before-*.png` are the round 3
+lion).
+
+- **The mane frames the face.** The ruff is rebuilt as 12 sections. Each section is a loop:
+  - The front edge sinks into the face: over the forehead in front of the ears, down the cheeks like sideburns,
+    forward along the jaw to under the chin.
+  - From there it runs out through short hair to the tufts, back over the neck, and over the shoulders to a ragged
+    edge.
+  - Every other section reaches further back; subdivision evens such alternation out to about a third, so it is
+    drawn large. A thin layer just over the coat carries the hair out to that edge; without it the surface dived
+    under the skin early.
+  - The lower sections hang down the chest, in front of and between the forelegs, as dark as in the photos.
+  - The ears grow on a stalk hidden in the hair, so their tops show above the mane. The face and neck no longer bulge
+    for the mane.
+  - Hair paint: golden at the face, dark at the back and chest.
+  - Streaks are wide locks in a darker shade of the local hair colour. They fade out where their coordinate folds
+    (the middle of the crown and of the chest), so no bullseye rings form there.
+  - Shots: `lion-front.png`, `lion-side.png`, `lion-game.png`, `lion-rear.png`.
+- **Hind legs at the rump (all quadrupeds).** The hip rings moved back (−0.58 → −0.8 of the half length). The thigh's
+  top ring reaches back by a share of the body length and starts inside the rump, so its back edge runs on down
+  from the buttock (`lioness-side.png`, `plains-zebra-side.png`). A test checks the gap (lion, zebra, elephant,
+  panda).
+  - Heavy, short-legged animals (bears, pigs, elephants, small mammals) scale this by leg length against body depth,
+    or the thigh bulges out under the rump.
+  - Two latent leg bugs showed up once the legs moved:
+    - On short legs the knee ring sat above the leg's top ring, so the leg folded back on itself. Ring heights now
+      squeeze in below the top.
+    - The top ring tilted towards a far-forward next ring and stood on edge. It now always lies flat.
+  - Bears and small mammals get a flat-footed hind leg and a narrower top ring (no cuff standing out from the body):
+    `polar-bear-side.png`. The pig loses the disc under its belly: `domestic-pig-side.png`.
+- **Fewer vertices.** Every tier lands on the same limit surface, so a tier only decides how finely it is sampled.
+  The one-level tiers had much denser cages than they needed, mostly rings along legs and tails where the shape
+  doesn't change.
+  - Low is now the high cage subdivided once: the same shape, a quarter of the triangles.
+  - Medium subdivides once a cage with about twice the rings of high.
+  - Tails use sparser rings than legs.
+  - The same rule applies in the bird, pinniped and reptile builders (`settings.tier`).
+
+| all 30 species, males | high | medium | low |
+|---|---:|---:|---:|
+| triangles before | 380,864 | 209,888 | 154,432 |
+| triangles now | 380,288 | 129,632 | 95,488 |
+| change | 0% | −38% | −38% |
+
+Per species, medium is now 3.2–5.9k triangles (was 5.4–9.4k), and low 2.1–4.1k (was 4.0–6.4k). The lion
+is 15.3k / 4.8k / 3.8k; low and medium hold up in the in-game view (`lion-game-medium.png`, `lion-game-low.png`).
+Lizard low tiers keep two rings per toe, because one subdivision level doesn't round a single ring into a toe.
+
+The mockup gained a three-quarter **rear** view (`view=rear`).
+
 ## Recommendation: adopt, with changes
 
 Adopt the single-mesh skinned approach for the four-legged plans. It fixes what it was meant to fix: profile, joints

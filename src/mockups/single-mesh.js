@@ -24,7 +24,7 @@ const SPECIES = single.MESH_SPECIES;
 const FIRST = ['lion', 'plains-zebra', 'reticulated-giraffe', 'asian-elephant'];
 /** Both sexes where they look different, plus the baby. */
 const VARIANTS = Object.fromEntries(SPECIES.map((id) => [id, [...(current.isDimorphic(id) ? [['male', 'adult']] : []), ['female', 'adult'], ['female', 'baby']]]));
-const VIEWS = { game: [0.55, 0.75, 1], side: [0, 0.08, 1], front: [0, 0.12, 1] };
+const VIEWS = { game: [0.55, 0.75, 1], side: [0, 0.08, 1], front: [0, 0.12, 1], rear: [-0.9, 0.45, -1] };
 
 const params = new URLSearchParams(location.search);
 const state = {
@@ -191,7 +191,7 @@ const set = (k, v, rebuild = true) => {
   sync();
 };
 buttons('species', [['all', 'All'], ...SPECIES.map((id) => [id, SPECIES_BY_ID[id]?.name ?? id])], (k) => set('species', k));
-buttons('views', [['game', 'In-game'], ['side', 'Side'], ['front', 'Front']], (k) => set('view', k));
+buttons('views', [['game', 'In-game'], ['side', 'Side'], ['front', 'Front'], ['rear', 'Rear']], (k) => set('view', k));
 buttons('poses', single.POSES.map((p) => [p, p[0].toUpperCase() + p.slice(1)]), (k) => set('pose', k, false));
 buttons('builders', [['both', 'Both'], ['old', 'Current'], ['new', 'Single mesh'], ['wire', 'Wireframe']], (k) => (k === 'wire' ? set('wire', !state.wire) : set('builder', k)));
 buttons('quality', QUALITY_NAMES.map((q) => [q, q[0].toUpperCase() + q.slice(1)]), (k) => setQuality(k));
@@ -217,7 +217,7 @@ addEventListener('keydown', (e) => {
   const list = ['all', ...SPECIES];
   if (k >= '1' && k <= '4') set('pose', single.POSES[Number(k) - 1], false);
   else if (k === 'arrowright' || k === 'arrowleft') set('species', list[(list.indexOf(state.species) + (k === 'arrowright' ? 1 : list.length - 1)) % list.length]);
-  else if (k === 'v') set('view', Object.keys(VIEWS)[(Object.keys(VIEWS).indexOf(state.view) + 1) % 3]);
+  else if (k === 'v') set('view', Object.keys(VIEWS)[(Object.keys(VIEWS).indexOf(state.view) + 1) % Object.keys(VIEWS).length]);
   else if (k === 'b') set('builder', { both: 'old', old: 'new', new: 'both' }[state.builder]);
   else if (k === 'w') set('wire', !state.wire);
   else if (k === 'q') setQuality(QUALITY_NAMES[(QUALITY_NAMES.indexOf(state.quality) + 1) % QUALITY_NAMES.length]);

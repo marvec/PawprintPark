@@ -57,18 +57,19 @@ export function resolveMeshLook(id, { sex = 'female', age = 'adult' } = {}) {
 
 /**
  * Detail → cage density and subdivision levels. Ring spacing is relative to the animal's size, so a giraffe and
- * a lion cub get about the same triangle count.
+ * a lion cub get about the same triangle count. Every tier lands on the cage's limit surface, so a tier only changes
+ * how finely that surface is sampled: low is the high cage subdivided once (a quarter of the triangles, the same
+ * shape); medium subdivides once a cage with about twice the rings along the body and limbs.
  */
 export function detailSettings(look, detail = 1) {
   const bodyL = look.body?.l ?? look.shell?.rz ?? 0.3;
   const legLen = look.legs?.len ?? bodyL * 0.4;
   const size = bodyL + legLen * 0.5 + (look.neck?.len ?? 0) * 0.5;
   // `size` and `detail` let builders scale their own densities (loops of a mane, feathers, shell rows).
-  if (detail >= 0.9) return { levels: 2, step: size * 0.13, legStep: legLen * 0.22, size, detail };
+  if (detail >= 0.9) return { tier: 0, levels: 2, step: size * 0.13, legStep: legLen * 0.22, size, detail };
   // Short-legged animals (otters) would get very dense legs and tails; the floor keeps them in budget.
-  if (detail >= 0.7) return { levels: 1, step: size * 0.034, legStep: Math.max(legLen * 0.042, size * 0.022), size, detail };
-  // Low: one subdivision step over a denser cage (moved to the limit surface, so the shape matches).
-  return { levels: 1, step: size * 0.055, legStep: Math.max(legLen * 0.07, size * 0.036), size, detail };
+  if (detail >= 0.7) return { tier: 1, levels: 1, step: size * 0.07, legStep: Math.max(legLen * 0.12, size * 0.05), size, detail };
+  return { tier: 2, levels: 1, step: size * 0.13, legStep: Math.max(legLen * 0.22, size * 0.07), size, detail };
 }
 
 const hex = (c) => [(c >> 16) & 255, (c >> 8) & 255, c & 255];
@@ -313,12 +314,16 @@ function toGeometry(poly, cage, M, joints, info, look, normals) {
     pat.set(patVec, i * 4);
     if (maneRgb && v.MANE > 0.5 && v.FUR >= 0) {
       // Ruff hair: the base shades from the mane colour at the roots to the tips colour, with darker streaks
-      // (the stripe pattern on the AUX coordinate) running out from the face.
+      // (the stripe pattern on the AUX coordinate) running out from the face. The streaks fade out where AUX folds
+      // over (the middle of the crown and of the chest: UNDER ±1), so they never close into rings there.
       const t = Math.min(1, Math.max(0, (v.FUR - 0.25) / 0.75));
-      for (let k = 0; k < 3; k++) color[i * 3 + k] = Math.round(maneRgb[0][k] + (maneRgb[1][k] - maneRgb[0][k]) * t);
-      color2.set(maneRgb[2], i * 3);
+      for (let k = 0; k < 3; k++) {
+        const c = maneRgb[0][k] + (maneRgb[1][k] - maneRgb[0][k]) * t;
+        color[i * 3 + k] = Math.round(c);
+        color2[i * 3 + k] = M.mane.streak === undefined ? Math.round(c * 0.8) : maneRgb[2][k];
+      }
       stripe[i] = v.AUX;
-      pat.set([1, 1, M.mane.streakWidth ?? 0.24, 0.55], i * 4);
+      pat.set([1, 1, (M.mane.streakWidth ?? 0.42) * Math.max(0, 1 - v.UNDER * v.UNDER) ** 2, 0.55], i * 4);
       // No markings on the ruff (the belly marking would reach its underside).
       mark[i] = -1;
     }

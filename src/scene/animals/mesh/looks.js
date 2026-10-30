@@ -66,7 +66,7 @@ const QUAD_MESH_LOOKS = {
       ],
     },
     male: {
-      mane: { r: 0.2, color: 0x9a6230, tips: 0x64381a, streak: 0x55301a, chest: 0.1 },
+      mane: { r: 0.24, color: 0xb57a38, tips: 0x5a3219 },
     },
     baby: {
       paint: { base: 0xd9ad66, pattern: { kind: PAT_SPOTS, color: 0xbb8d4f, size: 0.075, radius: 0.27, density: 0.55 } },

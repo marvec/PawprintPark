@@ -85,8 +85,8 @@ export function buildBirdCage(L, M, q) {
   const dir = [0, Math.sin(pitch), Math.cos(pitch)];
   const up = [0, Math.cos(pitch), -Math.sin(pitch)];
   const C = [0, bodyY, 0];
-  // Extra rings in the fixed-count parts when the cage is subdivided only once.
-  const dense = q.levels === undefined || q.levels >= 2 ? 0 : 1;
+  // Extra rings in the fixed-count parts on medium (low is the high cage subdivided once).
+  const dense = q.tier === 1 ? 1 : 0;
   const bodyAt = (t, y = 0) => v3.add(C, v3.add(v3.mul(dir, t * b.l), v3.mul(up, y * b.h)));
 
   const bones = ['seed', 'hips', 'chest', 'neck0', 'neck1', 'head', 'eyes', 'tail0', 'tail1', 'wingL', 'wingR'];

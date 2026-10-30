@@ -49,10 +49,10 @@ export function buildPinnipedCage(L, M, q) {
     parents[`foot${n}`] = `lower${n}`;
   }
   const cage = new Cage(bones);
-  // Detail tier: 0 high (two subdivision levels), 1 medium, 2 low (one level over a denser cage).
-  const tier = q.levels === 2 ? 0 : q.detail >= 0.7 ? 1 : 2;
+  // Detail tier (index.js): low is the high cage subdivided once; medium has twice its rings.
   const total = b.l * 2.3 + nk.len + hd.l * 2;
-  const step = total / [14, 100, 60][tier];
+  const tier = q.tier ?? 0;
+  const step = total / [14, 28, 14][tier];
 
   // The front half pivots up round the middle of the back.
   const pivot = [0, b.h, 0];
@@ -107,7 +107,7 @@ export function buildPinnipedCage(L, M, q) {
     ['S1', 0.95 * hd.l + 0.75 * sn.l, -0.16 * hd.h, 1.0 * sn.w, 0.86 * sn.h, { head: 1 }, pads(1), padCh],
     ['T', 0.95 * hd.l + 1.0 * sn.l, -0.1 * hd.h, 0.55 * sn.w, 0.5 * sn.h, { head: 1 }],
   ];
-  for (const [name, al, up, a, bb, w, shape, ch] of head) keys.push({ name, c: at(al, up), a, b: bb, w, shape, ch, hold: name === 'H0', step: hd.l * (tier ? 0.25 : 0.6) });
+  for (const [name, al, up, a, bb, w, shape, ch] of head) keys.push({ name, c: at(al, up), a, b: bb, w, shape, ch, hold: name === 'H0', step: hd.l * (tier === 1 ? 0.3 : 0.6) });
   // Whisker pads: two plump, paler lobes either side under the nose (islands of the same mesh, like the eyes).
   {
     const [, al, up, a, bb] = head.find((h) => h[0] === 'S1');
@@ -170,7 +170,7 @@ export function buildPinnipedCage(L, M, q) {
       joints[`lower${name}`] = specs[1].c;
       joints[`foot${name}`] = specs[2].c;
     }
-    cage.extrude(fi, limbFrames(densify(specs, tier ? 2 : 1), fc, [0, 0, 1]));
+    cage.extrude(fi, limbFrames(densify(specs, tier === 1 ? 2 : 1), fc, [0, 0, 1]));
     joints[`upper${name}`] = [fc[0] * 0.6, fc[1] + f * 0.05, fc[2]];
     legInfo.push({ name, front: true, side, len: f });
 
@@ -190,7 +190,7 @@ export function buildPinnipedCage(L, M, q) {
       { c: [rc[0] + side * r * 0.4, lowY, rc[2] - r * 0.78], a: r * 0.34, b: r * 0.05, flat, w: { [RW.l]: 0.3, [RW.f]: 0.7 }, ch: { S: rS, ...fColor(1), LEG: 1 } },
       { c: [rc[0] + side * r * 0.52, lowY, rc[2] - r * 1.02], a: r * 0.4, b: r * 0.035, flat, w: { [RW.f]: 1 }, ch: { S: rS, ...fColor(1), LEG: 1 } },
     ];
-    cage.extrude(ri, limbFrames(densify(rs, tier ? 2 : 1), rc, [0, 0, 1]));
+    cage.extrude(ri, limbFrames(densify(rs, tier === 1 ? 2 : 1), rc, [0, 0, 1]));
     joints[`upper${rn}`] = [rc[0] * 0.5, rc[1], rc[2]];
     joints[`lower${rn}`] = rs[1].c;
     joints[`foot${rn}`] = rs[2].c;

@@ -55,7 +55,7 @@ Not yet: `bun run build:app` (Capacitor, `mobile/`), the service worker, analyti
 - `/mockups/single-mesh/plans/`: the same body-plan mockup, opening with the single-mesh builder (all 12 plans).
 - `/mockups/single-mesh/` (`src/mockups/single-mesh.*`): **experiment**: single-mesh animals next to the current
   builder, one species per row (the overview shows lion, zebra, giraffe, elephant). URL params: `species=<id>|all`,
-  `view=game|side|front`, `pose=`, `builder=both|old|new`, `quality=`, `sex=`, `babies=0`, `zoom=`, `wire=1`,
+  `view=game|side|front|rear`, `pose=`, `builder=both|old|new`, `quality=`, `sex=`, `babies=0`, `zoom=`, `wire=1`,
   `seeds=4` (individuals with different coats), `still=1`, `ui=0`. Report: `docs/experiments/single-mesh-opus-low.md`.
 
 ## Key files
@@ -81,7 +81,9 @@ Not yet: `bun run build:app` (Capacitor, `mobile/`), the service worker, analyti
   stripes, patches, spots and markings per pixel; the individual's seed travels in bone 0 of the skeleton, so
   geometry is shared per species, sex, age and detail. Cage builders per plan family: `quadruped.js`, `bird.js`,
   `pinniped.js`, `reptile.js` (`info.kind` picks the pose family in `animate*.js`). Species extras in `mesh/looks.js`
-  (quadrupeds, with per-plan defaults), `looks-birds.js`, `looks-reptiles.js`.
+  (quadrupeds, with per-plan defaults), `looks-birds.js`, `looks-reptiles.js`. Detail tiers (`detailSettings` in
+  `mesh/index.js`, `settings.tier`) sample the same limit surface: high subdivides the cage twice, low subdivides the
+  same cage once, and medium subdivides once a cage with twice the rings.
 - `src/scene/backdrop.js`: sky dome, warm sun + hemisphere light, seeded meadow with trees and rocks.
 - `src/engine/renderer.js`: WebGL renderer with quality tiers, clamped dt, context-loss rebuild, background pause,
   and `step(frames)` for driving it by hand. `src/engine/platform.js`: runtime platform questions.

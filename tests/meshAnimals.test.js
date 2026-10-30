@@ -4,7 +4,9 @@
 import { describe, expect, test } from 'bun:test';
 import * as THREE from 'three';
 import { isDimorphic } from '../src/scene/animals/index.js';
-import { MESH_SPECIES, POSES, animate, buildAnimal, buildTemplate, createMeshAnimalMaterial, seedOffset } from '../src/scene/animals/mesh/index.js';
+import { resolveLook } from '../src/scene/animals/index.js';
+import { MESH_SPECIES, POSES, animate, buildAnimal, buildTemplate, createMeshAnimalMaterial, detailSettings, resolveMeshLook, seedOffset } from '../src/scene/animals/mesh/index.js';
+import { buildQuadCage } from '../src/scene/animals/mesh/quadruped.js';
 import { subdivide, toLimit } from '../src/scene/animals/mesh/subdivide.js';
 
 const material = createMeshAnimalMaterial();
@@ -163,6 +165,44 @@ describe('single-mesh buildAnimal', () => {
     expect(width('male')).toBeGreaterThan(width('female') * 1.1);
   });
 
+  /** The quadruped cage for a species (before subdivision), with its joints. */
+  const quadCage = (id, opts = {}) => {
+    const L = resolveLook(id, opts);
+    return buildQuadCage(L, resolveMeshLook(id, opts), detailSettings(L, 1));
+  };
+  /** Positions of cage vertices that pass a test (channel and weight readers). */
+  const cagePoints = ({ cage }, keep) => {
+    const out = [];
+    for (let i = 0; i < cage.count; i++) {
+      const w = (bone) => cage.data[i * cage.stride + 3 + cage.boneIndex[bone]];
+      if (keep((c) => cage.ch(i, c), w)) out.push(cage.pos(i));
+    }
+    return out;
+  };
+
+  test("the lion's mane starts at the face, in front of the ears, and reaches back over the shoulders", () => {
+    const lion = quadCage('lion', { sex: 'male' });
+    const mane = cagePoints(lion, (ch) => ch('MANE') > 0.5 && ch('FUR') >= 0);
+    const front = Math.max(...mane.map((p) => p[2]));
+    const back = Math.min(...mane.map((p) => p[2]));
+    expect(front).toBeGreaterThan(lion.joints.earR[2]);
+    expect(back).toBeLessThan(lion.joints.upperFR[2]);
+    // It hangs down the chest, below the shoulder joints.
+    expect(Math.min(...mane.map((p) => p[1]))).toBeLessThan(lion.joints.upperFR[1]);
+  });
+
+  test('the back of the hind thigh runs on down from the rump (no rump hangs out behind the legs)', () => {
+    for (const id of ['lion', 'plains-zebra', 'asian-elephant', 'giant-panda']) {
+      const c = quadCage(id);
+      const L = resolveLook(id);
+      const body = cagePoints(c, (ch, w) => w('hips') > 0.9 && ch('LEG') < 0 && ch('TAIL') > 3);
+      const thigh = cagePoints(c, (ch, w) => w('upperBR') > 0.3);
+      const rump = Math.min(...body.map((p) => p[2]));
+      const thighBack = Math.min(...thigh.map((p) => p[2]));
+      expect(thighBack - rump).toBeLessThan(L.body.l * 0.2);
+    }
+  });
+
   /** Vertices painted with a marking colour (mark > 0). */
   const painted = (id, opts, hex) => {
     const g = buildTemplate(id, opts).geometry;
@@ -176,7 +216,7 @@ describe('single-mesh buildAnimal', () => {
 
   test('parts that carry their own colour: nose pads, the ruff, horns, antlers, beards, ringed tails', () => {
     expect(painted('lion', {}, 0x7a4a3a)).toBeGreaterThan(20); // nose
-    expect(painted('lion', { sex: 'male' }, 0x9a6230)).toBeGreaterThan(50); // mane on the neck
+    expect(painted('lion', { sex: 'male' }, 0xb57a38)).toBeGreaterThan(50); // mane on the neck (under the ruff)
     expect(painted('domestic-goat', { sex: 'male' }, 0x8a7b6a)).toBeGreaterThan(50); // horns
     expect(painted('domestic-goat', { sex: 'male' }, 0xe2d8c6)).toBeGreaterThan(20); // beard
     expect(painted('reindeer', { sex: 'male' }, 0xcbb79a)).toBeGreaterThan(100); // antlers

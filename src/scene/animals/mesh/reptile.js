@@ -199,7 +199,8 @@ export function buildLizardCage(L, M, q) {
 
   // Ring spacing: the spine is long (most of it tail), so density follows the detail level rather than the size.
   const total = b.l * 2 + neckLen + hd.l * 1.6 + tl.len;
-  const rings = q.levels === 2 ? 26 : q.detail >= 0.7 ? 116 : 52;
+  // Low is the high cage subdivided once; medium has twice its rings (index.js).
+  const rings = q.tier === 1 ? 52 : 26;
   const step = total / rings;
   const crest = M.crest;
   // Crest spikes stand one per ring gap along the back, so the back is at least that dense.
@@ -215,7 +216,7 @@ export function buildLizardCage(L, M, q) {
     const y = lerp(tailBase[1], tl.r * 0.3 + 0.004, Math.min(1, u * 2.2) ** 0.8);
     return [Math.sin(u * Math.PI) * curl * tl.len, Math.max(y, lerp(tl.r, Math.max(0.004, tl.r * 0.08), u ** 0.85) + 0.002), tailBase[2] - u * tl.len];
   };
-  const nT = Math.max(4, Math.round(tl.len / (step * (q.levels === 2 ? 2.4 : 1.2))));
+  const nT = Math.max(4, Math.round(tl.len / (step * 2.4)));
   for (let i = nT; i >= 1; i--) {
     const u = i / nT;
     const r = lerp(tl.r, Math.max(0.004, tl.r * 0.08), u ** 0.85);
@@ -291,7 +292,7 @@ export function buildLizardCage(L, M, q) {
       // Cheek scale (iguanas): the jaw vertices of the ring behind the eyes.
       ch: cheek ? (co, si) => ({ AUX: Math.abs(co) > 0.85 && si < 0 ? 1 : -1 }) : {},
       shape: name === 'H0' && dew ? dewShape(dew.size * 0.45) : tk > 0 ? turretShape(tk) : undefined,
-      step: hd.l * (q.levels === 2 ? 0.6 : 0.25),
+      step: hd.l * (q.tier === 1 ? 0.3 : 0.6),
     });
   }
   const { spine, named, arcs } = loftSpine(cage, keys, step);
@@ -325,7 +326,7 @@ export function buildLizardCage(L, M, q) {
         // The palm ends short; the toes fan out from it.
         { c: toe(1.6), a: r * 1.15, b: r * 0.36, flat: [-footDir[2], 0, footDir[0]], w: { [W.f]: 1 }, ch: ch(0, { TIP: r * (M.toeLen ?? 1.3) }) },
       ];
-      const framed = limbFrames(densify(specs, q.levels === 2 ? 1 : 2), fc, [0, 0, 1]);
+      const framed = limbFrames(densify(specs, q.tier === 1 ? 2 : 1), fc, [0, 0, 1]);
       const [rA, rB] = cage.extrude(fi, framed).slice(-2);
       // Toes: three, fanned out and extruded from the palm's front cap and its two edges, so they grow out of the
       // foot with no seam. TIP runs to 0 at each toe's tip, for claws. One ring per toe on high (two subdivision
@@ -472,13 +473,13 @@ export function buildTurtleCage(L, M, q) {
   const cage = new Cage(bones);
   const bodyY = lg.len * 0.7;
   const joints = { seed: [0, 0, 0], hips: [0, bodyY, 0] };
-  // Detail tier: 0 high (two subdivision levels), 1 medium, 2 low (one level over a denser cage).
-  const tier = q.levels === 2 ? 0 : q.detail >= 0.7 ? 1 : 2;
+  // Detail tier (index.js): low is the high cage subdivided once; medium is denser.
+  const tier = q.tier ?? 0;
 
   // ---- Shell: a closed island, revolved around the vertical axis ------------------------------------------------
   {
-    const N = [16, 28, 20][tier];
-    const prof = refineProfile(SHELL, [0, 2, 1][tier]);
+    const N = [16, 24, 16][tier];
+    const prof = refineProfile(SHELL, [0, 1, 0][tier]);
     const loops = prof.map(([r, h], li) => {
       const ring = [];
       for (let k = 0; k < N; k++) {
@@ -503,7 +504,7 @@ export function buildTurtleCage(L, M, q) {
   }
 
   // ---- Skin: tail → body (inside the shell) → neck → head --------------------------------------------------------
-  const step = sh.rz / [3, 11, 7][tier];
+  const step = sh.rz / [3, 6, 3][tier];
   const tailLen = lg.r * 1.6;
   const back = -sh.rz * 0.72;
   const keys = [
@@ -538,7 +539,7 @@ export function buildTurtleCage(L, M, q) {
     ['S1', 1.5 * hd.l, -0.2 * hd.h, 0.4 * hd.w, 0.4 * hd.h, { head: 1 }],
     ['T', 1.62 * hd.l, -0.24 * hd.h, 0.18 * hd.w, 0.18 * hd.h, { head: 1 }],
   ];
-  for (const [name, al, up, a, bb, w] of head) keys.push({ name, c: at(al, up), a, b: bb, w, step: hd.l * (tier ? 0.3 : 0.7) });
+  for (const [name, al, up, a, bb, w] of head) keys.push({ name, c: at(al, up), a, b: bb, w, step: hd.l * (tier === 1 ? 0.35 : 0.7) });
   const { spine, named } = loftSpine(cage, keys, step);
 
   // ---- Legs: stout columns from under the shell, splayed a little ------------------------------------------------
@@ -560,7 +561,7 @@ export function buildTurtleCage(L, M, q) {
         { c: [x * 1.04, r * 0.55, fc[2] + f * r * 0.55], a: r * 1.02, b: r * 1.08, w: { [W.l]: 0.4, [W.f]: 0.6 }, ch: legY(1) },
         { c: [x * 1.05, r * 0.12, fc[2] + f * r * 0.62], a: r * 1.12, b: r * 1.15, w: { [W.f]: 1 }, ch: legY(0) },
       ];
-      cage.extrude(fi, limbFrames(densify(specs, q.levels === 2 ? 1 : 2), fc, [0, 0, 1]));
+      cage.extrude(fi, limbFrames(densify(specs, q.tier === 1 ? 2 : 1), fc, [0, 0, 1]));
       joints[`upper${name}`] = [lerp(fc[0], x, 0.4), bodyY, fc[2]];
       joints[`lower${name}`] = specs[1].c;
       joints[`foot${name}`] = specs[2].c;
