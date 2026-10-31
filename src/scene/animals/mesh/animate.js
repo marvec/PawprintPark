@@ -66,7 +66,8 @@ function quad(rig, pose, tt, amp) {
     B.hips.position.y += sin(tt * 2) * bodyH * 0.012 * amp;
     B.neck0.rotation.x += sin(tt * 0.6) * 0.05 * amp;
     B.neck1.rotation.x += sin(tt * 0.6) * 0.04 * amp;
-    B.head.rotation.y += sin(tt * 0.37) * 0.3 * amp;
+    // Elephants hardly turn their heads on their short necks (and their ear flaps would swing into the shoulders).
+    B.head.rotation.y += sin(tt * 0.37) * 0.3 * amp * (info.headTurn ?? 1);
     tailSway(0.25, 2.6);
     trunk(0.12 * amp);
     ears(amp);

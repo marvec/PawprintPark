@@ -6,6 +6,10 @@ import { CHANNELS, Cage, FAR, resample, v3 } from './cage.js';
 
 const clamp01 = (x) => Math.min(1, Math.max(0, x));
 const lerp = (a, b, t) => a + (b - a) * t;
+const smoothstep = (a, b, x) => {
+  const t = clamp01((x - a) / (b - a));
+  return t * t * (3 - 2 * t);
+};
 
 /**
  * Torso shape per plan: belly sag (hoof), tuck towards the rump (cat), back slope towards the shoulders; thigh: how far
@@ -231,7 +235,9 @@ export function buildQuadCage(L, M, q) {
   const b = L.body;
   const lg = L.legs;
   const nk = L.neck;
-  const hd = L.head;
+  // The mesh look can widen the head (warthogs): multipliers, so babies keep their proportions.
+  const hs = M.headScale ?? {};
+  const hd = { ...L.head, w: L.head.w * (hs.w ?? 1), h: L.head.h * (hs.h ?? 1) };
   const sn = L.snout;
   const ex = L.extras ?? {};
   const torso = TORSO[L.plan] ?? TORSO.hoof;
@@ -245,7 +251,12 @@ export function buildQuadCage(L, M, q) {
   const woolR = wool ? Math.min(b.w, b.h) * (wool.size ?? 0.42) * 0.35 : 0;
   const crestBack = M.crestBack;
   const crestShape = (h) => (co, si) => [0, si > 0.85 ? h : 0];
-  const ridge = (co, si) => ({ RIDGE: si > 0.85 ? 1 : si > 0.3 ? -2 : -3 });
+  // RIDGE: 1 on top of a crest, fading with it (k), so a stripe painted on it narrows to a point.
+  const ridgeK = (k) => (co, si) => ({ RIDGE: si > 0.85 ? lerp(-1, 1, k) : si > 0.3 ? -2 : -3 });
+  const ridge = ridgeK(1);
+  // The back crest grows from nothing at `from` to its full height at the middle of the back, and runs on into the
+  // neck's.
+  const crestK = (z) => (crestBack ? smoothstep(crestBack.from, 0, z) : 0);
   let lumpParity = 0;
   // Rings alternate their vertices in and out (staggered ring to ring), which subdivides into soft lumps.
   const lumps = (r, k) => {
@@ -289,8 +300,8 @@ export function buildQuadCage(L, M, q) {
       b: b.h * r.b,
       // Belly: sags in the middle (hoofed), tucks up towards the rump (cats). Wool puffs the body out in lumps; a
       // crest (warthog) runs along the back.
-      shape: combine((co, si) => [0, si < 0 ? b.h * (sag - tuck) * -si : 0], wool && lumps(woolR, wool.lumps ?? 0.5), crestBack && r.z > crestBack.from && crestShape(crestBack.h * clamp01((r.z - crestBack.from) / 0.4))),
-      ch: crestBack && r.z > crestBack.from ? ridge : wool ? { FUR: 1 } : undefined,
+      shape: combine((co, si) => [0, si < 0 ? b.h * (sag - tuck) * -si : 0], wool && lumps(woolR, wool.lumps ?? 0.5), crestK(r.z) > 0 && crestShape(crestBack.h * crestK(r.z))),
+      ch: crestK(r.z) > 0 ? ridgeK(crestK(r.z)) : wool ? { FUR: 1 } : undefined,
       w: { hips: hipW, chest: 1 - hipW },
     });
   }
@@ -307,6 +318,10 @@ export function buildQuadCage(L, M, q) {
   joints.neck1 = neckAt(0.5);
   joints.head = end;
   let neckCap = Infinity;
+  // A short neck that climbs steeply from the chest to the head (pigs, warthogs) can face its rings along the neck:
+  // with tangents from their neighbours they tilt back so far that their tops sink into the shoulders, leaving a
+  // groove behind the head. Opt-in, since the tilt rounds other short necks (bears, tapirs) nicely into the chest.
+  const alignNeck = !!M.alignNeck && a < 0.9;
   if (a < 0.9) {
     const last = keys[keys.length - 1];
     const n0 = neckAt(0.12);
@@ -315,7 +330,9 @@ export function buildQuadCage(L, M, q) {
     const blend = M.neckBlend ? [0.25, 0.5, 0.75] : [0.5];
     for (const t of blend) {
       const e = t * t * (3 - 2 * t);
-      keys.push({ c: v3.lerp(last.c, n0, t), a: lerp(last.a, nk.r * 1.3, e * 0.9), b: lerp(last.b, nk.r * 1.35, e * 0.9), w: { chest: 1 - t * 0.3, neck0: t * 0.3 } });
+      // A back crest (warthog) runs on over the blend into the neck's, without a dip between them.
+      const ridgeOn = crestBack && { shape: crestShape(lerp(crestBack.h, M.crest ?? crestBack.h, t)), ch: ridge };
+      keys.push({ c: v3.lerp(last.c, n0, t), a: lerp(last.a, nk.r * 1.3, e * 0.9), b: lerp(last.b, nk.r * 1.35, e * 0.9), w: { chest: 1 - t * 0.3, neck0: t * 0.3 }, ...(alignNeck ? { t: v3.norm(v3.lerp([0, 0, 1], dir, t)) } : {}), ...ridgeOn });
     }
     // The neck's first ring stays inside the body's front, so the neck doesn't bulge out of the chest.
     neckCap = Math.min(last.a, last.b) * 0.92;
@@ -343,6 +360,7 @@ export function buildQuadCage(L, M, q) {
       w: n.w,
       ch: mane ? { MANE: 1, RIDGE: -3 } : crest ? (co, si) => ({ ...ridge(co, si), PS: lerp(1, 0.7, n.t) }) : wool?.neck ? { FUR: 1, PS: lerp(1, 0.7, n.t) } : { PS: lerp(1, 0.7, n.t) },
       shape: wool?.neck ? lumps(woolR * lerp(1, 0.6, n.t), wool.lumps ?? 0.5) : crest ? crestShape(crest) : undefined,
+      ...(alignNeck ? { t: dir } : {}),
     });
   }
   // Head: along its own axis, pitched down from horizontal.
@@ -357,7 +375,7 @@ export function buildQuadCage(L, M, q) {
     const w = name === 'H0' ? { neck1: 0.35, head: 0.65 } : name === 'S1' && trunk ? { head: 0.8, trunk0: 0.2 } : { head: 1 };
     // Ears grow between H0 and H1, ossicones after H1, tusks after S0.
     const hold = name === 'H1' || name === 'H0' || (name === 'S0' && !!ex.tusks);
-    keys.push({ name, hold, c: at(along, up), a: ra, b: rb, w, ch: { PS: 0.75 } });
+    keys.push({ name, hold, c: at(along, up), a: ra, b: rb, w, ch: { PS: 0.75 }, ...(name === 'H0' && alignNeck ? { t: v3.norm(v3.add(dir, hdir)) } : {}) });
   }
   if (trunk) {
     const base = keys[keys.length - 1].c;
@@ -373,6 +391,20 @@ export function buildQuadCage(L, M, q) {
       keys.push({ c, a: lerp(trunk.r, tr2, t), b: lerp(trunk.r, tr2, t), w });
     });
   }
+  // Half-width of the torso and neck (head excluded) at a point, from the key rings: what flat ears hang over.
+  const bodyKeys = keys.slice(0, keys.findIndex((k) => k.name === 'H0'));
+  const bodyHalfWidth = (z, y) => {
+    let w = 0;
+    for (let i = 0; i + 1 < bodyKeys.length; i++) {
+      const A = bodyKeys[i];
+      const B = bodyKeys[i + 1];
+      if ((z - A.c[2]) * (z - B.c[2]) > 0 || A.c[2] === B.c[2]) continue;
+      const t = (z - A.c[2]) / (B.c[2] - A.c[2]);
+      const d = (y - lerp(A.c[1], B.c[1], t)) / lerp(A.b, B.b, t);
+      if (Math.abs(d) < 1) w = Math.max(w, lerp(A.a, B.a, t) * Math.sqrt(1 - d * d));
+    }
+    return w;
+  };
   const spineKeys = resample(keys, q.step);
   // Head rings use the head's up axis as their "side" reference (all rings use +x; the spine stays in the y-z plane).
   const spine = [];
@@ -567,6 +599,15 @@ export function buildQuadCage(L, M, q) {
         { c: c(es * 0.7, 0.07, -es * 0.25), t, s: [0, 1, 0], a: es * 0.9, b: 0.03, w, ch: front(side) },
         { c: c(es * 1.0, 0.08, -es * 0.4), t, s: [0, 1, 0], a: es * 0.45, b: 0.025, w, ch: { S: fS } },
       ];
+      // The flap hangs over the neck and the shoulder, so it stands off them at every height it covers instead
+      // of cutting into the body. Its back half follows the neck a little, so it stays clear when the head turns.
+      for (const sp of specs.slice(1)) {
+        let need = 0;
+        for (let k = -1; k <= 1; k += 0.25) need = Math.max(need, bodyHalfWidth(sp.c[2], sp.c[1] + k * sp.a));
+        sp.c = [side * Math.max(Math.abs(sp.c[0]), need + es * 0.08), sp.c[1], sp.c[2]];
+      }
+      specs[2].w = { head: 0.15, neck1: 0.15, [bone]: 0.7 };
+      specs[3].w = { head: 0.1, neck1: 0.25, neck0: 0.1, [bone]: 0.55 };
     }
     cage.extrude(fi, specs);
   }
@@ -692,7 +733,7 @@ export function buildQuadCage(L, M, q) {
   }
 
   const headLen = H.S1.along - H.H0.along;
-  return { cage, joints, parents, eyes, info: { kind: 'mesh-quad', legs: legInfo, legLen: lg.len, bodyH: b.h, bodyL: b.l, neckLen: nk.len, headLen, gait: L.gait ?? 'walk', stance: L.stance ?? null } };
+  return { cage, joints, parents, eyes, info: { kind: 'mesh-quad', legs: legInfo, legLen: lg.len, bodyH: b.h, bodyL: b.l, neckLen: nk.len, headLen, gait: L.gait ?? 'walk', stance: L.stance ?? null, headTurn: ears.kind === 'flap' ? 0.3 : 1 } };
 }
 
 /** The head's cross-section at a distance along its axis (between the head rings): centre and half sizes. */

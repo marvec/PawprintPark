@@ -203,6 +203,60 @@ describe('single-mesh buildAnimal', () => {
     }
   });
 
+  test("the elephant's ear flaps hang outside the neck and shoulders, also when the head turns", () => {
+    const material = createMeshAnimalMaterial();
+    for (const sex of ['female', 'male']) {
+      const { geometry, joints } = buildTemplate('asian-elephant', { sex });
+      const a = buildAnimal('asian-elephant', { sex, seed: 1, material });
+      let mesh;
+      a.group.traverse((o) => o.isSkinnedMesh && (mesh = o));
+      const names = mesh.skeleton.bones.map((b) => b.name);
+      const pos = geometry.getAttribute('position');
+      const si = geometry.getAttribute('skinIndex');
+      const sw = geometry.getAttribute('skinWeight');
+      const weight = (i, bone) => {
+        let s = 0;
+        for (let j = 0; j < 4; j++) if (names[si.getComponent(i, j)] === bone) s += sw.getComponent(i, j);
+        return s;
+      };
+      // The flap behind its root (where it grows out of the head and neck), and the body without the head.
+      const flap = [];
+      const body = [];
+      for (let i = 0; i < pos.count; i++) {
+        const ear = weight(i, 'earR') + weight(i, 'earL');
+        if (ear > 0.5 && pos.getZ(i) < joints.earR[2] - 0.2) flap.push(i);
+        else if (ear < 0.01 && weight(i, 'head') < 0.3) body.push(i);
+      }
+      // Rest, and the idle pose's widest head turns either way.
+      for (const t of [0, 4.25, 12.7]) {
+        animate(a.rig, 'idle', t - a.rig.phase, { blink: false });
+        a.group.updateMatrixWorld(true);
+        mesh.skeleton.update();
+        const P = (i) => mesh.applyBoneTransform(i, new THREE.Vector3().fromBufferAttribute(pos, i));
+        const B = body.map(P);
+        let inside = 0;
+        for (const i of flap) {
+          const p = P(i);
+          const widest = Math.max(0, ...B.filter((q) => Math.sign(q.x) === Math.sign(p.x) && Math.abs(q.y - p.y) < 0.04 && Math.abs(q.z - p.z) < 0.04).map((q) => Math.abs(q.x)));
+          if (Math.abs(p.x) < widest - 0.01) inside++;
+        }
+        expect(inside).toBeLessThan(flap.length * 0.05);
+      }
+    }
+  });
+
+  test('a short, steep neck leaves no groove between the shoulders and the head (warthog, pig)', () => {
+    for (const id of ['common-warthog', 'domestic-pig']) {
+      const c = quadCage(id, { sex: 'male' });
+      const up = (ch, w) => ch('LEG') < 0 && ch('EAR') < -0.5;
+      // The top of the body's front ring, and the upper half of the neck rings: none of them sits behind it.
+      const shoulders = cagePoints(c, (ch, w) => up(ch, w) && w('chest') > 0.99).filter((p) => p[1] > c.joints.chest[1]);
+      const neck = cagePoints(c, (ch, w) => up(ch, w) && w('neck0') > 0.3).filter((p) => p[1] > c.joints.neck0[1]);
+      const front = Math.max(...shoulders.map((p) => p[2]));
+      expect(Math.min(...neck.map((p) => p[2]))).toBeGreaterThan(front - 0.01);
+    }
+  });
+
   /** Vertices painted with a marking colour (mark > 0). */
   const painted = (id, opts, hex) => {
     const g = buildTemplate(id, opts).geometry;

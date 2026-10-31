@@ -154,6 +154,7 @@ const QUAD_MESH_LOOKS = {
   },
   'domestic-pig': {
     head: { pitch: 0.12 },
+    alignNeck: true,
     eye: { t: 0.45, ang: 0.45, fwd: 0.6 },
     eyeScale: 1.0,
     ears: { kind: 'floppy', size: 0.13, droop: 0.2 },
@@ -185,12 +186,14 @@ const QUAD_MESH_LOOKS = {
   'common-warthog': {
     head: { pitch: 0.3 },
     eye: { t: 0.35, ang: 0.55, fwd: 0.35 },
-    crest: 0.06,
-    crestBack: { from: -0.4, h: 0.05 },
+    crest: 0.03,
+    crestBack: { from: -0.4, h: 0 },
+    headScale: { w: 1.3, h: 1.2 },
+    alignNeck: true,
     ears: { kind: 'pointy', size: 0.08 },
     paint: {
       base: 0x7b6a5f,
-      marks: [muzzle(0x6c5c52, 0.1), { color: 0x4a3c33, field: (v) => (v.RIDGE - 0.55) * 0.04 }, horny(0xf2ead8), tuft(0x2e2622, 0.08), hooves(0x3a302a, 0.1), ...eyes()],
+      marks: [muzzle(0x6c5c52, 0.1), { color: 0x4a3c33, field: (v) => (0.035 * (v.RIDGE + 1)) / 2 - Math.abs(v.x) }, horny(0xf2ead8), tuft(0x2e2622, 0.08), hooves(0x3a302a, 0.1), ...eyes()],
     },
   },
 

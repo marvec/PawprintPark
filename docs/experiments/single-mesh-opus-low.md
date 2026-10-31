@@ -361,6 +361,33 @@ Lizard low tiers keep two rings per toe, because one subdivision level doesn't r
 
 The mockup gained a three-quarter **rear** view (`view=rear`).
 
+### Round 5: elephant ears and the warthog's back
+
+Shots in `round5/`.
+
+- **Elephant ears stay outside the body.** The flap pointed back into the shoulder: about 50 of its 233 vertices
+  lay inside the body, up to 26 cm deep. Each flap ring is now pushed out until it clears the neck and shoulder at
+  every height it covers (`bodyHalfWidth`, from the spine's key rings).
+  - The back of the flap follows the neck a little.
+  - Elephants turn their heads a third as far in the idle pose, as real elephants do on their short necks.
+  - A test poses the elephant (rest, head turned either way) and checks the flap stays out of the body.
+  - Before and after: `elephants-before-after.png`.
+  - A narrower neck was tried; it pinched the head into a waist.
+- **The warthog's back.** There were three problems:
+  - The back crest was a 5 cm flat-topped slab, with a dark stripe on it, that stopped short at the shoulders.
+  - The ring joining body and neck had no crest, so it dipped between the two.
+  - The rings of its short, steep neck tilted back so far that their tops sank into the shoulders. That left a groove
+    behind the head (`warthog-before-*.png`). The pig has the same groove.
+
+  The fixes:
+  - The mane is now a painted stripe, narrow on the neck and spine and tapering out mid-back, with no raised slab.
+  - The warthog gets a wider head (`headScale`, multipliers).
+  - The neck rings of pigs and warthogs face along the neck (`alignNeck`), so the back runs smoothly into the head
+    (`warthog-side.png`, `warthog-game.png`, `pig-before-after.png`).
+  - `alignNeck` is opt-in. Applied to every short, low neck, it made the tapir, pandas, meerkat, otter and fox
+    blockier; their tilted rings round the chest into the neck nicely.
+  - A test checks that no neck vertex sits behind the shoulders.
+
 ## Recommendation: adopt, with changes
 
 Adopt the single-mesh skinned approach for the four-legged plans. It fixes what it was meant to fix: profile, joints
