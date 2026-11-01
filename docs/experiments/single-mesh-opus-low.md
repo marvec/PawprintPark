@@ -373,6 +373,17 @@ Shots in `round5/`.
   - A test poses the elephant (rest, head turned either way) and checks the flap stays out of the body.
   - Before and after: `elephants-before-after.png`.
   - A narrower neck was tried; it pinched the head into a waist.
+  - **The collar.** Feedback: the elephants still wore a collar behind the head, and their ears were small for an
+    elephant.
+    - The cause was a neck as wide as the body (`neckScale: 1.3`, ±0.75 m) behind a head only ±0.53 m wide. Its top
+      rose almost to the top of the head, so it ringed the head.
+    - The head is now bigger (`headScale` 1.3 × 1.15) and sits higher (`neckY: 0.6`), so the domed head is the
+      highest point, as on a real Asian elephant. The neck is barely wider than its radius (`neckScale: 1.05`).
+    - The ears are bigger (0.62 → 0.95), framing the head from the front, and attach along more of the side of the
+      head. Before and after: `elephants-collar-before.png`, `elephants-collar-after.png`,
+      `elephants-front-after.png`.
+    - When eating, the flaps keep hanging instead of turning with the lowered head; turned with it, they stood up
+      over the back like a hat.
 - **The warthog's back.** There were three problems:
   - The back crest was a 5 cm flat-topped slab, with a dark stripe on it, that stopped short at the shoulders.
   - The ring joining body and neck had no crest, so it dipped between the two.

@@ -131,6 +131,11 @@ function quad(rig, pose, tt, amp) {
     B.neck0.rotation.x += 0.6;
     B.neck1.rotation.x += 0.45;
     B.head.rotation.x += 0.25 + sin(tt * 7) * 0.04 * amp;
+    // Elephant ear flaps keep hanging while the head tips down; turned with it, they would stand up over the back.
+    if (info.earFlaps) {
+      B.earR.rotation.x -= 1.1;
+      B.earL.rotation.x -= 1.1;
+    }
     tailSway(0.2, 2);
     trunk(0.25 * amp, -0.5);
     ears(amp);

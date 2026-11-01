@@ -594,7 +594,7 @@ export function buildQuadCage(L, M, q) {
       const out = [side, 0, 0];
       const c = (along, o, dy) => v3.add(fc, v3.add(v3.mul(t, along), v3.add(v3.mul(out, o), [0, dy, 0])));
       specs = [
-        { c: c(0.02, 0.02, 0), t, s: [0, 1, 0], a: es * 0.3, b: 0.05, w, ch: { S: fS } },
+        { c: c(0.02, 0.02, 0), t, s: [0, 1, 0], a: es * 0.45, b: 0.05, w, ch: { S: fS } },
         { c: c(es * 0.25, 0.05, -es * 0.1), t, s: [0, 1, 0], a: es * 0.85, b: 0.035, w, ch: front(side) },
         { c: c(es * 0.7, 0.07, -es * 0.25), t, s: [0, 1, 0], a: es * 0.9, b: 0.03, w, ch: front(side) },
         { c: c(es * 1.0, 0.08, -es * 0.4), t, s: [0, 1, 0], a: es * 0.45, b: 0.025, w, ch: { S: fS } },
@@ -733,7 +733,7 @@ export function buildQuadCage(L, M, q) {
   }
 
   const headLen = H.S1.along - H.H0.along;
-  return { cage, joints, parents, eyes, info: { kind: 'mesh-quad', legs: legInfo, legLen: lg.len, bodyH: b.h, bodyL: b.l, neckLen: nk.len, headLen, gait: L.gait ?? 'walk', stance: L.stance ?? null, headTurn: ears.kind === 'flap' ? 0.3 : 1 } };
+  return { cage, joints, parents, eyes, info: { kind: 'mesh-quad', legs: legInfo, legLen: lg.len, bodyH: b.h, bodyL: b.l, neckLen: nk.len, headLen, gait: L.gait ?? 'walk', stance: L.stance ?? null, headTurn: ears.kind === 'flap' ? 0.3 : 1, earFlaps: ears.kind === 'flap' } };
 }
 
 /** The head's cross-section at a distance along its axis (between the head rings): centre and half sizes. */

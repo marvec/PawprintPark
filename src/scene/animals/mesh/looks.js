@@ -117,9 +117,11 @@ const QUAD_MESH_LOOKS = {
     head: { pitch: 0.35 },
     eye: { t: 0.55, ang: 0.15, fwd: 0.45 },
     eyeScale: 1.7,
-    ears: { kind: 'flap', size: 0.62 },
+    ears: { kind: 'flap', size: 0.95 },
     trunk: 0.8,
-    neckScale: 1.3,
+    neckScale: 1.05,
+    headScale: { w: 1.3, h: 1.15 },
+    neckY: 0.6,
     paint: {
       base: 0x8f8a84,
       marks: [
