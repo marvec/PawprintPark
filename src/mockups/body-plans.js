@@ -89,7 +89,7 @@ function buildAnimal(id, opts) {
 const animate = (rig, ...rest) => (rig.kind?.startsWith('mesh-') ? single.animate : animateCurrent)(rig, ...rest);
 const lineup = new THREE.Group();
 scene.add(lineup);
-/** @type {{ rig: object }[]} */
+/** @type {{ rig: object, group: THREE.Object3D, id: string }[]} */
 let animals = [];
 /** @type {{ plan: string, center: THREE.Vector3, radius: number }[]} */
 let rows = [];
@@ -168,7 +168,7 @@ function buildLineup() {
     for (const c of clusters) {
       const start = x;
       for (const m of c.members) {
-        items.push({ m, x: x + m.w / 2 });
+        items.push({ m, id: c.id, x: x + m.w / 2 });
         x += m.w + Math.max(0.25, m.w * 0.25);
       }
       c.center = (start + x) / 2;
@@ -177,10 +177,10 @@ function buildLineup() {
     }
     const width = x - 1.2;
     const rowZ = z - rowDepth / 2;
-    for (const { m, x: px } of items) {
+    for (const { m, id, x: px } of items) {
       m.a.group.position.set(px - width / 2, 0, rowZ);
       lineup.add(m.a.group);
-      animals.push({ rig: m.a.rig });
+      animals.push({ rig: m.a.rig, group: m.a.group, id });
     }
     for (const c of clusters) {
       const sp = SPECIES_BY_ID[c.id];
@@ -404,8 +404,101 @@ if (tween) {
 }
 syncButtons();
 
+/**
+ * What a frame costs, from renderer.info: draw calls and triangles per part of the scene (each part hidden in turn,
+ * so frustum culling and the shadow pass count as they really do), the shadow pass on its own, GPU memory and
+ * shader programs, and the milliseconds spent posing the animals and rendering. Timings wait for the GPU
+ * (gl.finish), so they mean something in a real browser; headless Chrome renders in software.
+ */
+function perf(frames = 20) {
+  const r = view.renderer;
+  const gl = r.getContext();
+  const frame = () => {
+    r.render(scene, camera);
+    return { draws: r.info.render.calls, tris: r.info.render.triangles };
+  };
+  const time = (fn) => {
+    fn(0);
+    gl.finish();
+    const t0 = performance.now();
+    for (let i = 1; i <= frames; i++) fn(i);
+    gl.finish();
+    return +((performance.now() - t0) / frames).toFixed(2);
+  };
+  const meadow = scene.getObjectByName('meadow');
+  const parts = {
+    animals: animals.map((a) => a.group),
+    trees: meadow.children.filter((o) => o.isGroup),
+    rocks: meadow.children.filter((o) => o.isMesh && o.name !== 'ground'),
+    ground: [scene.getObjectByName('ground')],
+    sky: [scene.getObjectByName('sky')],
+    'strips, signs': lineup.children.filter((o) => !animals.some((a) => a.group === o)),
+  };
+  const total = frame();
+  const shadows = r.shadowMap.enabled;
+  r.shadowMap.autoUpdate = false;
+  const main = frame();
+  r.shadowMap.autoUpdate = true;
+  const breakdown = {};
+  for (const [name, objs] of Object.entries(parts)) {
+    const was = objs.map((o) => o.visible);
+    objs.forEach((o) => (o.visible = false));
+    const without = frame();
+    objs.forEach((o, i) => (o.visible = was[i]));
+    let meshes = 0;
+    let casters = 0;
+    for (const o of objs) o.traverse((m) => m.isMesh && (meshes++, m.castShadow && casters++));
+    breakdown[name] = { draws: total.draws - without.draws, tris: total.tris - without.tris, meshes, casters };
+  }
+  // Animals by species: triangles and meshes of one individual, and how many stand in the scene.
+  const species = {};
+  for (const a of animals) {
+    const s = (species[a.id] ??= { count: 0, tris: 0, meshes: 0, bones: 0 });
+    s.count++;
+    let tris = 0;
+    let meshes = 0;
+    a.group.traverse((m) => {
+      if (!m.isMesh) return;
+      meshes++;
+      tris += (m.geometry.index ? m.geometry.index.count : m.geometry.getAttribute('position').count) / 3;
+      if (m.isSkinnedMesh) s.bones = m.skeleton.bones.length;
+    });
+    s.tris = tris;
+    s.meshes = meshes;
+  }
+  const t = performance.now() / 1000;
+  const ms = {
+    pose: time((i) => {
+      for (const a of animals) animate(a.rig, state.pose, still ? 1 : t + i / 60, { reduced, blink: !still });
+    }),
+    matrices: time(() => scene.updateMatrixWorld(true)),
+    render: time(() => r.render(scene, camera)),
+  };
+  r.shadowMap.autoUpdate = false;
+  ms.renderNoShadowPass = time(() => r.render(scene, camera));
+  r.shadowMap.autoUpdate = true;
+  const hidden = animals.map((a) => a.group);
+  hidden.forEach((o) => (o.visible = false));
+  ms.renderNoAnimals = time(() => r.render(scene, camera));
+  hidden.forEach((o) => (o.visible = true));
+  const size = r.getDrawingBufferSize(new THREE.Vector2());
+  return {
+    quality: state.quality,
+    builder: state.builder,
+    canvas: `${size.x}×${size.y} (dpr ${r.getPixelRatio()})`,
+    shadowMap: shadows ? lights.sun.shadow.mapSize.x : 0,
+    total,
+    mainPass: main,
+    shadowPass: { draws: total.draws - main.draws, tris: total.tris - main.tris },
+    breakdown,
+    species,
+    memory: { ...r.info.memory, programs: r.info.programs.length },
+    ms,
+  };
+}
+
 // Console helpers for agents and screenshots.
 Object.assign(globalThis, {
   __step: (n = 1) => view.step(n),
-  __mockup: { state, focusOn, focusSpecies, setQuality, rebuild, animals: () => animals },
+  __mockup: { state, focusOn, focusSpecies, setQuality, rebuild, animals: () => animals, perf },
 });

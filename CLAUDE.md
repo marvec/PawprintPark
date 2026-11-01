@@ -94,6 +94,14 @@ Not yet: `bun run build:app` (Capacitor, `mobile/`), the service worker, analyti
 - `__pawprint.mockup()`: open the body-plan mockup (game, dev only; `src/debug.js` is stripped from production and
   `tests/devOnly.test.js` checks it).
 - `__mockup.{ state, focusOn(i), focusSpecies(id), setQuality(name), rebuild(), animals() }`: drive the mockup.
+- `__mockup.perf(frames = 20)` (body-plan mockup): what a frame costs, from `renderer.info`. It reports:
+  - draw calls and triangles per part (animals, trees, rocks, ground, sky, strips), measured by hiding each part;
+  - the main pass and the shadow pass;
+  - per species: triangles, meshes, bones;
+  - GPU memory and shader programs;
+  - milliseconds for posing, matrices, rendering, rendering without the shadow pass, and rendering without animals.
+
+  Timings wait for the GPU (`gl.finish`), so run it in a real browser; headless Chrome renders in software.
 
 ## Ports
 
