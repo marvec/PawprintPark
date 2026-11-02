@@ -461,8 +461,8 @@ All audio is synthesized, with no files (handbook §6).
   big heads and eyes, clean graphic coat patterns (crisp zebra stripes, a giraffe's net), dark hooves.
 - Coat patterns are drawn per pixel by the animal shader, so edges stay crisp at any mesh density. Props and
   scenery stay faceted low-poly (rocks, trees, fences).
-- Quality tiers: pixel-ratio cap, shadows, and the visible visitor count. Swaying foliage and post-processing are
-  high tier only.
+- Quality tiers: pixel-ratio cap, shadows, the best animal mesh resolution (§17.1), and the visible visitor count.
+  Swaying foliage and post-processing are high tier only.
 - Visuals get approved on a mockup page before the systems are built (CLAUDE.md).
 
 ### 17.1 Drawing a big zoo
@@ -473,6 +473,20 @@ A complete zoo holds over 1,000 animals and more than 100 staff (economy.md §7)
 - **Full detail**: animated, code-built models for animals near the camera, up to a budget per quality tier: about
   40 on Low, 80 on Medium and 150 on High. Staff follow the same rule with a smaller budget. Visitors already use a
   capped sample (§10.1).
+- **Detail by distance** (not built yet). Full-detail animals still pick a mesh resolution by their size on screen:
+  - The high mesh is only for animals close to the camera; further out they use medium, then low.
+  - The quality tier caps the best resolution: Low never uses high.
+  - A margin around each switch distance stops animals near it from flipping back and forth.
+  - The single-mesh builder's resolutions sample the same smooth surface, so a switch changes how finely it is
+    drawn, not the animal's shape.
+  - Measured on the body-plan mockup (71 animals, High): every animal drawn at full resolution is 99% of the
+    1.8M triangles in a frame. The low mesh is about a quarter of the high one.
+- **Low-resolution shadows** (not built yet):
+  - Animals cast shadows from their low-resolution mesh, whatever resolution they are drawn at; the shadow pass
+    never draws the high mesh.
+  - The shadow map stays small; the soft shadow filter hides its resolution.
+  - Measured on the same mockup: the shadow pass redraws every animal at full resolution, half of the frame's
+    triangles (900k) and draw calls (170 of 330).
 - **Priority** when there are more animals than the budget allows:
   1. the selected animal;
   2. animals with an active warning;
