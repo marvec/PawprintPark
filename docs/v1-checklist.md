@@ -265,6 +265,8 @@ milestone that delivers it ([milestones.md](milestones.md)). A line is ticked on
 
 ## Decisions to review
 
+The milestone 1 decisions below were approved on 2026-11-07.
+
 - **Calendar start** (M1): a new zoo starts on 1 March, year 1, at 7:00. Months carry real names and seasons
   (Dec–Feb winter, Mar–May spring, Jun–Aug summer, Sep–Nov autumn).
 - **Day phases** (M1): night 20:00–5:00, dawn 5–6, day 6–19, dusk 19–20. The zoo is open 8:00–18:00. A night
