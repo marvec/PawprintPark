@@ -1,5 +1,10 @@
 # Experiment: single-mesh animals (opus, low effort)
 
+**Outcome (2026-11-07):** chosen. The single-mesh builder is now the only animal builder: its files moved from
+`src/scene/animals/mesh/` up into `src/scene/animals/`, the old builder and the `/mockups/single-mesh/` comparison
+page were removed, and `tests/meshAnimals.test.js` became `tests/animals.test.js`. Paths below are as they were
+during the experiment.
+
 Branch `feature/single-mesh-animals-opus-low`, worktree `../PawprintPark-exp-opus-low`. Code in
 `src/scene/animals/mesh/`, mockup at `/mockups/single-mesh/`, tests in `tests/meshAnimals.test.js`. The existing
 builder is unchanged.

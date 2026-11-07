@@ -1,4 +1,4 @@
-// Single-mesh looks for birds (bird-walk, bird-perch, penguin): same scheme as looks.js. The paint fields use the
+// Mesh looks for birds (bird-walk, bird-perch, penguin): same scheme as looks-quadrupeds.js. The paint fields use the
 // channels as bird.js fills them: AUX (up the neck: 1 at the nape), BEAK (0 at the base to 1 at the tip), EAR (face
 // patch), WING (metres out along the wing), TAIL (metres to the tail tip), LEG (1 bare legs, -0.5 thighs), TIP (comb).
 

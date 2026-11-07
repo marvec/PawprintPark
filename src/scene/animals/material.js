@@ -1,4 +1,4 @@
-// One shared material for every single-mesh animal. The coat is a procedural texture evaluated per pixel:
+// One shared material for every animal. The coat is a procedural texture evaluated per pixel:
 //
 // - `stripe` (float) with the rest-pose `position`: S, a stripe coordinate that runs along the spine, down each leg
 //   and along the tail. It is a smooth field on one connected surface, so stripes never meet a seam. For cell patterns
@@ -96,8 +96,8 @@ float me = max(fwidth(vMark), 1e-5);
 diffuseColor.rgb *= mix(coatColor, markColor, smoothstep(-me, me, vMark));
 `;
 
-/** The shared single-mesh animal material (vertex colours, procedural coat, skinning). */
-export function createMeshAnimalMaterial({ flat = false } = {}) {
+/** The shared animal material (vertex colours, procedural coat, skinning). */
+export function createAnimalMaterial({ flat = false } = {}) {
   const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0, flatShading: flat });
   m.onBeforeCompile = (shader) => {
     shader.vertexShader = shader.vertexShader
@@ -116,6 +116,6 @@ vSeed = vec3(0.0);
       .replace('#include <common>', `#include <common>\n${VARYINGS}\n${NOISE}`)
       .replace('#include <color_fragment>', PAINT);
   };
-  m.customProgramCacheKey = () => 'animal-single-mesh';
+  m.customProgramCacheKey = () => 'animal';
   return m;
 }

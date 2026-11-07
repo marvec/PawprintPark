@@ -1,4 +1,4 @@
-// Poses for single-mesh birds (bird.js): walking and perching birds, and penguins. Bones go back to rest every frame
+// Poses for birds (bird.js): walking and perching birds, and penguins. Bones go back to rest every frame
 // (animate.js); `t` already includes the rig's phase.
 
 import { blink } from './blink.js';

@@ -1,11 +1,11 @@
-// Single-mesh pinnipeds, lizards and tortoises (src/scene/animals/mesh/pinniped.js, reptile.js). The generic checks
-// (closed surface, ground contact, budgets, no drift, build time) run for every species in meshAnimals.test.js; these
+// Pinnipeds, lizards and tortoises (src/scene/animals/pinniped.js, reptile.js). The generic checks
+// (closed surface, ground contact, budgets, no drift, build time) run for every species in animals.test.js; these
 // check what is particular to these body plans.
 
 import { describe, expect, test } from 'bun:test';
 import * as THREE from 'three';
 import { resolveLook } from '../src/scene/animals/index.js';
-import { animate, buildAnimal, buildTemplate, createMeshAnimalMaterial } from '../src/scene/animals/mesh/index.js';
+import { animate, buildAnimal, buildTemplate, createAnimalMaterial } from '../src/scene/animals/index.js';
 
 /** Vertices painted (mark > 0) with a marking colour. */
 const painted = (id, opts, hex) => {
@@ -17,7 +17,7 @@ const painted = (id, opts, hex) => {
   return n;
 };
 
-const material = createMeshAnimalMaterial();
+const material = createAnimalMaterial();
 const worldPos = (bone) => {
   bone.updateWorldMatrix(true, false);
   return new THREE.Vector3().setFromMatrixPosition(bone.matrixWorld);
@@ -25,7 +25,7 @@ const worldPos = (bone) => {
 /** Rest-pose geometry bounds, in the animal's own (unscaled) units. */
 const bounds = (id, opts) => buildTemplate(id, opts).geometry.boundingBox;
 
-describe('single-mesh pinnipeds', () => {
+describe('pinnipeds', () => {
   test('rig: the pinniped family, two front and two rear flippers', () => {
     for (const id of ['california-sea-lion', 'harbour-seal']) {
       const { rig } = buildAnimal(id, { material });
@@ -58,7 +58,7 @@ describe('single-mesh pinnipeds', () => {
   });
 });
 
-describe('single-mesh lizards', () => {
+describe('lizards', () => {
   test('rig: the lizard family, four legs and a tail of four bones', () => {
     const { rig } = buildAnimal('komodo-dragon', { material });
     expect(rig.kind).toBe('mesh-lizard');
@@ -109,7 +109,7 @@ describe('single-mesh lizards', () => {
   });
 });
 
-describe('single-mesh tortoises', () => {
+describe('tortoises', () => {
   test('rig: the turtle family; a patterned shell and skin markings off it', () => {
     const { rig } = buildAnimal('leopard-tortoise', { material });
     expect(rig.kind).toBe('mesh-turtle');

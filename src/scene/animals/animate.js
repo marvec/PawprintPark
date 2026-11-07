@@ -1,236 +1,176 @@
-// Code-driven animation: every frame the rig goes back to its rest pose and the pose is applied on top, so nothing
-// drifts. Pure (no DOM, no clock): the caller passes the time in seconds.
+// Poses for animals: every frame the bones go back to rest and the pose is applied on top, so nothing
+// drifts. The animal's own group is never touched. Pure: the caller passes the time in seconds. Each animation family
+// (rig.kind, from the cage builder's info.kind) has its own function: quadrupeds here, the others in their files.
 
-import { resetRest } from './rig.js';
+import { animateBird } from './animate-bird.js';
+import { animatePinniped } from './animate-pinniped.js';
+import { animateLizard, animateTurtle } from './animate-reptile.js';
+import { blink } from './blink.js';
 
 export const POSES = ['idle', 'walk', 'eat', 'sleep'];
 
 const sin = Math.sin;
 const cos = Math.cos;
 
-/** Eyes close briefly every few seconds (and stay shut while sleeping). `t` already includes the rig's phase. */
-function blink(rig, t, closed = false) {
-  if (!rig.eyes) return;
-  const p = t % 4.3;
-  rig.eyes.scale.y = closed ? 0.08 : p < 0.14 ? 0.12 : 1;
+function reset(rest) {
+  for (const [b, r] of rest) {
+    b.position.copy(r.p);
+    b.quaternion.copy(r.q);
+    b.scale.copy(r.s);
+  }
 }
 
-/**
- * Poses a rig.
- * @param {object} rig  from buildAnimal
- * @param {'idle'|'walk'|'eat'|'sleep'} pose
- * @param {number} t  time in seconds
- * @param {{ reduced?: boolean, blink?: boolean }} [opts]  reduced motion: smaller, slower movement; blink: false keeps
- *   the eyes open (except asleep), for repeatable screenshots
- */
+/** Family → pose function (rig, pose, t with the rig's phase, amplitude). */
+const FAMILIES = {
+  'mesh-quad': quad,
+  'mesh-bird': animateBird,
+  'mesh-pinniped': animatePinniped,
+  'mesh-lizard': animateLizard,
+  'mesh-turtle': animateTurtle,
+};
+
 export function animate(rig, pose, t, opts = {}) {
-  resetRest(rig.rest);
+  reset(rig.rest);
   const tt = t + (rig.phase ?? 0);
   const amp = opts.reduced ? 0.4 : 1;
-  switch (rig.kind) {
-    case 'quad':
-      quad(rig, pose, tt, amp);
-      break;
-    case 'bird':
-    case 'penguin':
-      bird(rig, pose, tt, amp);
-      break;
-    case 'pinniped':
-      pinniped(rig, pose, tt, amp);
-      break;
-    case 'lizard':
-      lizard(rig, pose, tt, amp);
-      break;
-    case 'turtle':
-      turtle(rig, pose, tt, amp);
-      break;
-  }
-  if (opts.blink === false && pose !== 'sleep' && rig.eyes) rig.eyes.scale.y = 1;
+  (FAMILIES[rig.kind] ?? quad)(rig, pose, tt, amp);
+  if (opts.blink === false && pose !== 'sleep') rig.bones.eyes.scale.y = 1;
 }
 
-function quad(r, pose, t, amp) {
-  const { legLen, bodyH } = r.size;
-  const upright = r.stance === 'upright' && pose === 'idle';
-  // Bigger animals move more slowly.
+/** Quadrupeds: hoofed animals, cats, dogs, bears, small mammals, elephants and tapirs. */
+function quad(rig, pose, tt, amp) {
+  const B = rig.bones;
+  const { legLen, bodyH } = rig.size;
+  // Cats, dogs, bears and small mammals lie down like cats; hoofed animals and elephants fold their legs under.
+  const cat = rig.plan === 'cat' || rig.plan === 'dog' || rig.plan === 'bear' || rig.plan === 'small';
+  const info = rig.info ?? {};
   const f = 7 / (1 + legLen * 3.2);
+  const tailSway = (k, speed) => {
+    B.tail0.rotation.y += sin(tt * speed) * k * 0.5 * amp;
+    B.tail1.rotation.y += sin(tt * speed - 0.8) * k * 0.7 * amp;
+    B.tail2.rotation.y += sin(tt * speed - 1.6) * k * amp;
+  };
+  const trunk = (k, base = 0) => {
+    if (!B.trunk0) return;
+    B.trunk0.rotation.x += base * 0.4 + sin(tt * 1.1) * k * 0.4;
+    B.trunk1.rotation.x += base * 0.6 + sin(tt * 1.1 - 0.7) * k * 0.6;
+    B.trunk2.rotation.x += base + sin(tt * 1.1 - 1.4) * k;
+  };
+  const ears = (k) => {
+    const flick = tt % 5.7 < 0.25 ? sin(tt * 40) * 0.25 : 0;
+    B.earR.rotation.z += (flick + sin(tt * 0.9) * 0.05) * k;
+    B.earL.rotation.z -= sin(tt * 0.9 + 1) * 0.05 * k;
+  };
+
   if (pose === 'idle') {
-    r.body.position.y += sin(t * 2) * bodyH * 0.015 * amp;
-    r.neck.rotation.x += sin(t * 0.6) * 0.08 * amp;
-    r.head.rotation.y += sin(t * 0.37) * 0.35 * amp;
-    r.tail.rotation.y += sin(t * 2.6) * 0.3 * amp;
-    if (r.trunk) r.trunk.rotation.x += sin(t * 1.1) * 0.12 * amp;
-    blink(r, t);
-    if (upright) {
-      // Meerkat sentry: sit up on the haunches.
-      r.body.rotation.x = -1.15;
-      r.body.position.y += r.size.bodyL * 0.55;
-      r.body.position.z -= r.size.bodyL * 0.45;
-      r.neck.rotation.x = 1.0;
-      for (const l of r.legs) l.g.rotation.x = l.front ? 1.0 : 1.35;
-      // The tail props the sitting animal up, lying along the ground behind it.
-      r.tail.rotation.x = 1.45;
-    }
-  } else if (pose === 'walk') {
-    const ph = t * f;
-    if (r.gait === 'hop') {
-      const s = sin(ph);
-      r.body.position.y += Math.max(0, s) * bodyH * 0.6;
-      r.body.rotation.x = -s * 0.15 * amp;
-      for (const l of r.legs) l.g.rotation.x = (l.front ? -1 : 1) * Math.max(0, s) * 0.6 * amp;
-    } else {
-      for (const l of r.legs) {
-        const diag = (l.front ? 1 : -1) * l.side > 0 ? 0 : Math.PI;
-        l.g.rotation.x = sin(ph + diag) * 0.42 * amp;
+    B.hips.position.y += sin(tt * 2) * bodyH * 0.012 * amp;
+    B.neck0.rotation.x += sin(tt * 0.6) * 0.05 * amp;
+    B.neck1.rotation.x += sin(tt * 0.6) * 0.04 * amp;
+    // Elephants hardly turn their heads on their short necks (and their ear flaps would swing into the shoulders).
+    B.head.rotation.y += sin(tt * 0.37) * 0.3 * amp * (info.headTurn ?? 1);
+    tailSway(0.25, 2.6);
+    trunk(0.12 * amp);
+    ears(amp);
+    blink(rig, tt);
+    if (info.stance === 'upright') {
+      // Meerkat sentry: sit up on the haunches, forepaws dangling, tail flat on the ground behind.
+      const up = 1.15;
+      B.hips.rotation.x -= up;
+      B.hips.position.y -= legLen * 0.45;
+      B.neck0.rotation.x += up * 0.75;
+      B.neck1.rotation.x += up * 0.2;
+      for (const l of rig.legs) {
+        if (l.front) {
+          l.upper.rotation.x = 0.7;
+          l.lower.rotation.x = 0.9;
+        } else {
+          l.upper.rotation.x = up - 0.6;
+          l.lower.rotation.x = -0.3;
+          l.foot.rotation.x = 0.9;
+        }
       }
-      r.body.position.y += Math.abs(sin(ph)) * bodyH * 0.04 * amp;
-      r.body.rotation.z = sin(ph) * 0.025 * amp;
+      B.tail0.rotation.x += up * 0.9;
+      B.tail1.rotation.x -= 0.25;
     }
-    r.neck.rotation.x += sin(ph * 2) * 0.05 * amp;
-    r.tail.rotation.y += sin(ph) * 0.35 * amp;
-    if (r.trunk) r.trunk.rotation.x += sin(ph) * 0.2 * amp;
-    blink(r, t);
-  } else if (pose === 'eat') {
-    r.neck.rotation.x += 0.95;
-    r.head.rotation.x += 0.15 + sin(t * 7) * 0.04 * amp;
-    if (r.trunk) r.trunk.rotation.x += -0.5 + sin(t * 2) * 0.25 * amp;
-    r.tail.rotation.y += sin(t * 2) * 0.25 * amp;
-    blink(r, t);
-  } else if (pose === 'sleep') {
-    r.body.position.y -= legLen * 0.72;
-    r.body.scale.y *= 1 + sin(t * 1.2) * 0.02 * amp;
-    for (const l of r.legs) l.g.rotation.x = l.front ? -1.35 : 1.35;
-    r.neck.rotation.x += 0.45;
-    r.head.rotation.z += 0.25;
-    if (r.trunk) r.trunk.rotation.x += -0.4;
-    blink(r, t, true);
-  }
-}
-
-function bird(r, pose, t, amp) {
-  const { legLen } = r.size;
-  const f = 9 / (1 + legLen * 3);
-  if (pose === 'idle') {
-    r.head.rotation.y += sin(t * 0.8) * 0.5 * amp;
-    r.neck.rotation.x += sin(t * 0.5) * 0.06 * amp;
-    r.tail.rotation.x += sin(t * 1.7) * 0.06 * amp;
-    // A short wing stretch now and then.
-    const burst = (t % 7) < 0.6;
-    for (const w of r.wings) w.g.rotation.z = burst ? w.side * (0.4 + sin(t * 22) * 0.35) * amp : 0;
-    blink(r, t);
-  } else if (pose === 'walk') {
-    const ph = t * f;
-    for (const l of r.legs) l.g.rotation.x = sin(ph + (l.side > 0 ? 0 : Math.PI)) * 0.5 * amp;
-    if (r.kind === 'penguin') {
-      r.body.rotation.z = sin(ph) * 0.14 * amp;
-      for (const w of r.wings) w.g.rotation.z = w.side * 0.35;
-    } else {
-      // The forward-and-back head bob of walking birds.
-      r.neck.position.z += sin(ph * 2) * r.size.bodyL * 0.12 * amp;
-      r.body.position.y += Math.abs(sin(ph)) * legLen * 0.03 * amp;
+  } else if (pose === 'walk' && info.gait === 'hop') {
+    // Rabbits hop: both hind legs push off together, the forelegs reach forward, the body arcs.
+    const ph = tt * f * 0.8;
+    const s = Math.max(0, sin(ph));
+    B.hips.position.y += s * bodyH * 0.7 * amp;
+    B.hips.rotation.x = -s * 0.2 * amp;
+    for (const l of rig.legs) {
+      l.upper.rotation.x = (l.front ? -0.7 : 0.6) * s * amp;
+      if (!l.front) l.foot.rotation.x = 0.5 * s * amp;
     }
-    blink(r, t);
-  } else if (pose === 'eat') {
-    r.neck.rotation.x += 1.15 + Math.max(0, sin(t * 7)) * 0.2 * amp;
-    blink(r, t);
-  } else if (pose === 'sleep') {
-    if (r.kind === 'penguin') {
-      r.neck.rotation.x += 0.35;
-    } else if (legLen > 0.4) {
-      // Long-legged birds sleep standing on one leg with the head tucked in.
-      r.legs[1].g.rotation.x = -1.6;
-      r.neck.rotation.x += -0.5;
-      r.head.rotation.y += 2.4;
-    } else {
-      r.body.position.y -= legLen * 0.85;
-      r.neck.rotation.x += 0.35;
-      for (const l of r.legs) l.g.scale.y = 0.15;
+    B.neck0.rotation.x += s * 0.15 * amp;
+    blink(rig, tt);
+  } else if (pose === 'walk') {
+    const ph = tt * f;
+    for (const l of rig.legs) {
+      const diag = (l.front ? 1 : -1) * l.side > 0 ? 0 : Math.PI;
+      const a = ph + diag;
+      const swing = Math.max(0, -cos(a));
+      l.upper.rotation.x = sin(a) * 0.4 * amp;
+      // Lift the foot while the leg swings forward: front knees fold back, hind hocks fold forward.
+      if (l.front) {
+        l.lower.rotation.x = swing * 0.9 * amp;
+        l.foot.rotation.x = swing * 0.3 * amp;
+      } else {
+        l.lower.rotation.x = -swing * 0.35 * amp;
+        l.foot.rotation.x = swing * 0.8 * amp;
+      }
     }
-    r.body.scale.y *= 1 + sin(t * 1.4) * 0.02 * amp;
-    blink(r, t, true);
-  }
-}
-
-function pinniped(r, pose, t, amp) {
-  const [fl, fr, rear] = r.flippers;
-  if (pose === 'idle') {
-    r.neck.rotation.x += sin(t * 0.5) * 0.12 * amp;
-    r.head.rotation.y += sin(t * 0.33) * 0.45 * amp;
-    rear.g.rotation.y += sin(t * 1.3) * 0.15 * amp;
-    blink(r, t);
-  } else if (pose === 'walk') {
-    const ph = t * 3.2;
-    r.body.rotation.x = sin(ph) * 0.07 * amp;
-    r.body.position.y += Math.abs(sin(ph)) * r.size.bodyH * 0.12 * amp;
-    fl.g.rotation.x = sin(ph) * 0.45 * amp;
-    fr.g.rotation.x = sin(ph + Math.PI) * 0.45 * amp;
-    rear.g.rotation.y = sin(ph) * 0.3 * amp;
-    r.neck.rotation.x += -sin(ph) * 0.12 * amp;
-    blink(r, t);
+    B.hips.position.y += Math.abs(sin(ph)) * bodyH * 0.04 * amp;
+    B.hips.rotation.z = sin(ph) * 0.02 * amp;
+    B.neck0.rotation.x += sin(ph * 2) * 0.04 * amp;
+    B.head.rotation.x += -sin(ph * 2) * 0.03 * amp;
+    tailSway(0.3, f);
+    trunk(0.2 * amp);
+    blink(rig, tt);
   } else if (pose === 'eat') {
-    r.neck.rotation.x += 0.7 + sin(t * 6) * 0.06 * amp;
-    blink(r, t);
+    B.neck0.rotation.x += 0.6;
+    B.neck1.rotation.x += 0.45;
+    B.head.rotation.x += 0.25 + sin(tt * 7) * 0.04 * amp;
+    // Elephant ear flaps keep hanging while the head tips down; turned with it, they would stand up over the back.
+    if (info.earFlaps) {
+      B.earR.rotation.x -= 1.1;
+      B.earL.rotation.x -= 1.1;
+    }
+    tailSway(0.2, 2);
+    trunk(0.25 * amp, -0.5);
+    ears(amp);
+    blink(rig, tt);
   } else if (pose === 'sleep') {
-    if (r.upright) r.body.rotation.x = 0.22;
-    r.neck.rotation.x += 0.55;
-    r.head.rotation.z += 0.3;
-    r.body.scale.y *= 1 + sin(t * 1.1) * 0.025 * amp;
-    blink(r, t, true);
-  }
-}
-
-function lizard(r, pose, t, amp) {
-  const sway = (ph, k) => r.tail.forEach((s, i) => (s.rotation.y = sin(ph - i * 0.9) * k * amp));
-  if (pose === 'idle') {
-    sway(t * 0.8, 0.12);
-    // Head bobs (iguanas) and tongue flicks (monitors).
-    const bob = (t % 5) < 0.8;
-    r.neck.rotation.x += bob ? -Math.abs(sin(t * 12)) * 0.2 * amp : 0;
-    if (r.tongue) r.tongue.scale.z = (t % 3) < 0.35 ? Math.abs(sin(t * 18)) : 0.001;
-    blink(r, t);
-  } else if (pose === 'walk') {
-    const ph = t * 4;
-    r.body.rotation.y = sin(ph) * 0.14 * amp;
-    for (const l of r.legs) l.g.rotation.y = sin(ph + ((l.front ? 1 : -1) * l.side > 0 ? 0 : Math.PI)) * 0.5 * amp;
-    sway(ph, 0.25);
-    r.neck.rotation.y = -sin(ph) * 0.12 * amp;
-    if (r.tongue) r.tongue.scale.z = (t % 2) < 0.3 ? Math.abs(sin(t * 18)) : 0.001;
-    blink(r, t);
-  } else if (pose === 'eat') {
-    r.neck.rotation.x += 0.4 + sin(t * 5) * 0.08 * amp;
-    sway(t, 0.08);
-    if (r.tongue) r.tongue.scale.z = 0.6 + sin(t * 9) * 0.3;
-    blink(r, t);
-  } else if (pose === 'sleep') {
-    r.body.position.y -= r.size.legLen * 0.3;
-    for (const l of r.legs) l.g.rotation.z = l.side * 0.35;
-    sway(t * 0.3, 0.04);
-    r.neck.rotation.x += 0.15;
-    blink(r, t, true);
-  }
-}
-
-function turtle(r, pose, t, amp) {
-  const neckLen = r.size.neckLen;
-  if (pose === 'idle') {
-    r.head.rotation.y += sin(t * 0.4) * 0.4 * amp;
-    r.neck.rotation.x += sin(t * 0.3) * 0.08 * amp;
-    blink(r, t);
-  } else if (pose === 'walk') {
-    const ph = t * 2.2;
-    for (const l of r.legs) l.g.rotation.x = sin(ph + ((l.front ? 1 : -1) * l.side > 0 ? 0 : Math.PI)) * 0.35 * amp;
-    r.body.rotation.z = sin(ph) * 0.03 * amp;
-    r.body.position.y += Math.abs(cos(ph)) * 0.005 * amp;
-    blink(r, t);
-  } else if (pose === 'eat') {
-    r.neck.rotation.x += 0.55;
-    r.head.rotation.x += Math.max(0, sin(t * 4)) * 0.2 * amp;
-    blink(r, t);
-  } else if (pose === 'sleep') {
-    // Head pulled into the shell.
-    r.neck.position.z -= neckLen * 0.85;
-    r.neck.scale.setScalar(0.85);
-    r.body.position.y -= r.size.legLen * 0.25;
-    for (const l of r.legs) l.g.scale.y = 0.6;
-    blink(r, t, true);
+    B.hips.position.y -= legLen * 0.72;
+    B.hips.scale.y *= 1 + sin(tt * 1.2) * 0.015 * amp;
+    for (const l of rig.legs) {
+      if (cat) {
+        // Cats lie with the forelegs stretched out in front and the hind legs folded alongside.
+        if (l.front) {
+          l.upper.rotation.x = -1.25;
+          l.lower.rotation.x = 0.1;
+          l.foot.rotation.x = 1.0;
+        } else {
+          l.upper.rotation.x = -0.9;
+          l.lower.rotation.x = 1.9;
+          l.foot.rotation.x = -0.8;
+        }
+      } else if (l.front) {
+        // Hoofed animals fold the forelegs under the chest.
+        l.upper.rotation.x = -0.35;
+        l.lower.rotation.x = 2.3;
+        l.foot.rotation.x = 0.4;
+      } else {
+        l.upper.rotation.x = -0.7;
+        l.lower.rotation.x = 0.4;
+        l.foot.rotation.x = 1.6;
+      }
+    }
+    B.neck0.rotation.x += 0.3;
+    B.neck1.rotation.x += 0.2;
+    B.head.rotation.z += 0.2;
+    tailSway(0.05, 0.4);
+    trunk(0.05, -0.3);
+    blink(rig, tt, true);
   }
 }

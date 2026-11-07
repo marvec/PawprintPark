@@ -1,4 +1,4 @@
-// What the single-mesh builder adds to the species looks (../looks.js keeps sizes and colours): head pitch, coat
+// What the builder adds to the species looks (looks.js keeps sizes and nose colours): head pitch, ears, coat
 // pattern, markings, and a few shape tweaks. Same override scheme: `male`, `female`, `baby`.
 //
 // Markings are signed fields over a vertex's rest position and channels (cage.js CHANNELS): positive inside. Units

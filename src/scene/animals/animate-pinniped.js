@@ -1,4 +1,4 @@
-// Poses for single-mesh pinnipeds (pinniped.js). The rig is back at rest when this runs (animate.js); `t` already
+// Poses for pinnipeds (pinniped.js). The rig is back at rest when this runs (animate.js); `t` already
 // includes the rig's phase. Pure.
 
 import { blink } from './blink.js';

@@ -1,12 +1,12 @@
-// Single-mesh birds (src/scene/animals/mesh/bird.js): walking and perching birds and penguins. The generic checks
-// (closed surface, finite geometry, budgets, ground contact, no drift) run over every species in meshAnimals.test.js;
+// Birds (src/scene/animals/bird.js): walking and perching birds and penguins. The generic checks
+// (closed surface, finite geometry, budgets, ground contact, no drift) run over every species in animals.test.js;
 // these check what is particular to birds, posed on the CPU with three.js's own bone transform.
 
 import { describe, expect, test } from 'bun:test';
 import * as THREE from 'three';
-import { animate, buildAnimal, buildTemplate, createMeshAnimalMaterial } from '../src/scene/animals/mesh/index.js';
+import { animate, buildAnimal, buildTemplate, createAnimalMaterial } from '../src/scene/animals/index.js';
 
-const material = createMeshAnimalMaterial();
+const material = createAnimalMaterial();
 const BIRDS = ['chicken', 'common-ostrich', 'chilean-flamingo', 'scarlet-macaw', 'gentoo-penguin'];
 
 /** Lowest world-space y of the vertices weighted mostly to `bone`. */
@@ -36,7 +36,7 @@ function markColours(id, opts) {
   return out;
 }
 
-describe('single-mesh birds', () => {
+describe('birds', () => {
   for (const id of BIRDS) {
     test(`${id}: a bird rig with two legs and two wings, standing on its toes`, () => {
       const { group, rig } = buildAnimal(id, { material });

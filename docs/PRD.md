@@ -477,7 +477,7 @@ A complete zoo holds over 1,000 animals and more than 100 staff (economy.md §7)
   - The high mesh is only for animals close to the camera; further out they use medium, then low.
   - The quality tier caps the best resolution: Low never uses high.
   - A margin around each switch distance stops animals near it from flipping back and forth.
-  - The single-mesh builder's resolutions sample the same smooth surface, so a switch changes how finely it is
+  - The animal builder's resolutions sample the same smooth surface, so a switch changes how finely it is
     drawn, not the animal's shape.
   - Measured on the body-plan mockup (71 animals, High): every animal drawn at full resolution is 99% of the
     1.8M triangles in a frame. The low mesh is about a quarter of the high one.

@@ -6,7 +6,6 @@ import { defaultQuality, QUALITY } from './data/quality.js';
 import { initPlatform, isTouch, reducedMotion } from './engine/platform.js';
 import { createRenderer } from './engine/renderer.js';
 import { animate, buildAnimal } from './scene/animals/index.js';
-import { detail } from './scene/animals/shapes.js';
 import { buildLights, buildMeadow, buildSky } from './scene/backdrop.js';
 
 // Bun's HTML bundler rewrites <link> tags, so the icon and manifest are injected at runtime (handbook §11).
@@ -19,7 +18,6 @@ for (const [rel, href] of [['icon', './icon.svg'], ['manifest', './manifest.webm
 
 initPlatform();
 const quality = defaultQuality(isTouch());
-detail.level = QUALITY[quality].detail;
 
 const scene = new THREE.Scene();
 scene.fog = new THREE.Fog(PALETTE.fog, 30, 140);
@@ -27,7 +25,7 @@ scene.add(buildSky());
 scene.add(buildMeadow({ seed: 3, clearRadius: 14, trees: 50 }).group);
 scene.add(buildLights({ extent: 8, ...QUALITY[quality] }).group);
 
-const sheep = buildAnimal('domestic-sheep', { sex: 'female' });
+const sheep = buildAnimal('domestic-sheep', { sex: 'female', detail: QUALITY[quality].detail });
 scene.add(sheep.group);
 
 const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 600);

@@ -3,9 +3,7 @@
 //
 // URL parameters for screenshots: ?pose=walk&focus=cat&species=plains-zebra&quality=low&scale=uniform&flat=1&babies=0&ui=0
 // Close-ups: species=<id> plus view=side|front, only=<id> (hide other species), sex=male|female (one adult),
-// zoom=2, still=1 (frozen pose, eyes open). builder=single|current: the single-mesh builder (src/scene/animals/mesh/,
-// experiment) or the current one; /mockups/single-mesh/plans/ opens with the single mesh. Species the single-mesh
-// builder can't make yet fall back to the current builder (their labels say so).
+// zoom=2, still=1 (frozen pose, eyes open). tris=1 adds triangle counts to the labels.
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -15,9 +13,7 @@ import { QUALITY, QUALITY_NAMES, defaultQuality } from '../data/quality.js';
 import { SPECIES_BY_ID } from '../data/species.js';
 import { initPlatform, isTouch, reducedMotion } from '../engine/platform.js';
 import { createRenderer } from '../engine/renderer.js';
-import { LOOKS, POSES, V1_PLANS, animate as animateCurrent, buildAnimal as buildCurrent, createAnimalMaterial, isDimorphic } from '../scene/animals/index.js';
-import * as single from '../scene/animals/mesh/index.js';
-import { detail } from '../scene/animals/shapes.js';
+import { LOOKS, POSES, V1_PLANS, animate, buildAnimal, createAnimalMaterial, isDimorphic } from '../scene/animals/index.js';
 import { buildLights, buildMeadow, buildSky } from '../scene/backdrop.js';
 
 const PLAN_NAMES = {
@@ -44,7 +40,6 @@ const state = {
   turntable: false,
   quality: QUALITY_NAMES.includes(params.get('quality')) ? params.get('quality') : defaultQuality(isTouch()),
   focus: -1, // -1 = overview, otherwise an index into V1_PLANS
-  builder: params.get('builder') === 'single' || (!params.has('builder') && location.pathname.includes('single-mesh')) ? 'single' : 'current',
 };
 const reduced = reducedMotion();
 const still = params.get('still') === '1';
@@ -73,20 +68,8 @@ document.body.appendChild(labels.domElement);
 const materials = {
   smooth: createAnimalMaterial(),
   flat: createAnimalMaterial({ flat: true }),
-  single: single.createMeshAnimalMaterial(),
-  singleFlat: single.createMeshAnimalMaterial({ flat: true }),
 };
 
-/** Builds with the chosen builder; the single mesh falls back to the current builder for species it can't make. */
-function buildAnimal(id, opts) {
-  if (state.builder === 'single' && single.MESH_SPECIES.includes(id)) {
-    const material = state.flat ? materials.singleFlat : materials.single;
-    const a = single.buildAnimal(id, { ...opts, material, detail: QUALITY[state.quality].detail, cache: true });
-    return { ...a, single: true };
-  }
-  return { ...buildCurrent(id, opts), single: false };
-}
-const animate = (rig, ...rest) => (rig.kind?.startsWith('mesh-') ? single.animate : animateCurrent)(rig, ...rest);
 const lineup = new THREE.Group();
 scene.add(lineup);
 /** @type {{ rig: object, group: THREE.Object3D, id: string }[]} */
@@ -106,7 +89,7 @@ function triangles(group) {
 
 function disposeLineup() {
   lineup.traverse((o) => {
-    // Single-mesh geometry is cached and shared between rebuilds.
+    // Animal geometry is cached and shared between rebuilds.
     if (o.isMesh && o.geometry && !o.isSkinnedMesh) o.geometry.dispose();
     if (o.isCSS2DObject) o.element.remove();
   });
@@ -127,8 +110,8 @@ function tag(html, cls) {
 /** Lays the body plans out as rows, front to back; species side by side; variants grouped. */
 function buildLineup() {
   disposeLineup();
-  detail.level = QUALITY[state.quality].detail;
   const material = state.flat ? materials.flat : materials.smooth;
+  const detail = QUALITY[state.quality].detail;
   const box = new THREE.Box3();
   const size = new THREE.Vector3();
   let z = 0;
@@ -144,7 +127,7 @@ function buildLineup() {
       if (params.has('sex')) variants.splice(0, variants.length, ...variants.filter(([sx, age]) => age === 'adult' && sx === params.get('sex')).slice(0, 1));
       if (!variants.length) variants.push(['female', 'adult']);
       const members = variants.map(([sex, age]) => {
-        const a = buildAnimal(id, { sex, age, material });
+        const a = buildAnimal(id, { sex, age, material, detail, cache: true });
         // Side views turn the animals to face right, so the row shows their profiles.
         if (params.get('view') === 'side') a.group.rotation.y = Math.PI / 2;
         animate(a.rig, 'idle', 0);
@@ -159,7 +142,7 @@ function buildLineup() {
         rowDepth = Math.max(rowDepth, size.z);
         return { a, sex, age, w: Math.max(size.x, size.z * 0.42), h: size.y, tris: triangles(a.group) };
       });
-      clusters.push({ id, members, fallback: members.some((m) => !m.a.single) && state.builder === 'single' });
+      clusters.push({ id, members });
     }
 
     // Place clusters left to right, then centre the row.
@@ -186,7 +169,7 @@ function buildLineup() {
       const sp = SPECIES_BY_ID[c.id];
       const kinds = c.members.map((m) => (m.age === 'baby' ? 'baby' : m.sex === 'male' ? '♂' : isDimorphic(c.id) ? '♀' : 'adult')).join(' · ');
       const tris = c.members.map((m) => `${(m.tris / 1000).toFixed(1)}k`).join(' · ');
-      const label = tag(`${sp.name} <small>${kinds}${c.fallback ? ' · current builder' : ''}${params.get('tris') === '1' ? `<br>${tris} tris` : ''}</small>`, 'tag');
+      const label = tag(`${sp.name} <small>${kinds}${params.get('tris') === '1' ? `<br>${tris} tris` : ''}</small>`, 'tag');
       speciesLabels.push(label);
       label.position.set(c.center - width / 2, c.top + 0.35, rowZ);
       lineup.add(label);
@@ -283,7 +266,6 @@ function syncButtons() {
   press('focus', (k) => Number(k) === state.focus);
   press('quality', (k) => k === state.quality);
   press('look', (k) => (k === 'scale' ? state.scale === 'uniform' : k === 'flat' ? state.flat : k === 'babies' ? state.babies : state.turntable));
-  press('builder', (k) => k === state.builder);
 }
 
 buttons('poses', POSES.map((p) => [p, p[0].toUpperCase() + p.slice(1)]), (p) => {
@@ -301,11 +283,6 @@ buttons('look', [['scale', 'Same size'], ['flat', 'Faceted'], ['babies', 'Babies
   syncButtons();
 });
 buttons('quality', QUALITY_NAMES.map((q) => [q, q[0].toUpperCase() + q.slice(1)]), (q) => setQuality(q));
-buttons('builder', [['single', 'Single mesh'], ['current', 'Current']], (k) => {
-  state.builder = k;
-  rebuild();
-  syncButtons();
-});
 
 const panel = document.getElementById('panel');
 const togglePanel = () => panel.classList.toggle('hidden');
@@ -343,9 +320,6 @@ addEventListener('keydown', (e) => {
   } else if (k === 'b') {
     state.babies = !state.babies;
     rebuild();
-  } else if (k === 'm') {
-    state.builder = state.builder === 'single' ? 'current' : 'single';
-    rebuild();
   } else if (k === 'r') {
     state.turntable = !state.turntable;
     controls.autoRotate = state.turntable;
@@ -381,7 +355,7 @@ const view = createRenderer(canvas, {
     fpsT += dt;
     if (fpsT > 0.5) {
       const info = view.renderer.info.render;
-      stats.textContent = `${Math.round(fpsN / fpsT)} fps · ${info.calls} draws · ${(info.triangles / 1000).toFixed(0)}k tris · ${animals.length} animals · ${state.quality} · ${state.builder === 'single' ? 'single mesh' : 'current builder'}`;
+      stats.textContent = `${Math.round(fpsN / fpsT)} fps · ${info.calls} draws · ${(info.triangles / 1000).toFixed(0)}k tris · ${animals.length} animals · ${state.quality}`;
       fpsT = 0;
       fpsN = 0;
     }
@@ -484,7 +458,6 @@ function perf(frames = 20) {
   const size = r.getDrawingBufferSize(new THREE.Vector2());
   return {
     quality: state.quality,
-    builder: state.builder,
     canvas: `${size.x}×${size.y} (dpr ${r.getPixelRatio()})`,
     shadowMap: shadows ? lights.sun.shadow.mapSize.x : 0,
     total,

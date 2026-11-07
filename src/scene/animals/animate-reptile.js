@@ -1,4 +1,4 @@
-// Poses for single-mesh lizards and tortoises (reptile.js). The rig is back at rest when these run (animate.js);
+// Poses for lizards and tortoises (reptile.js). The rig is back at rest when these run (animate.js);
 // `t` already includes the rig's phase. Pure.
 
 import { blink } from './blink.js';

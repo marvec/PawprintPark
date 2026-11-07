@@ -50,13 +50,8 @@ Not yet: `bun run build:app` (Capacitor, `mobile/`), the service worker, analyti
   Close-ups: `species=<id>` (in-game angle), `view=side|front`, `only=<id>` (hide the others), `sex=male|female`
   (one adult), `zoom=2`, `still=1` (frozen pose with open eyes: headless Chrome renders slowly, so without it a
   screenshot can catch a blink). `bun scripts/screenshot.js` takes `EVAL='expr'` to print page state.
-  Keys: 1–4 pose, ←/→ body plan, 0 overview, U same size, F faceted, B babies, R turntable, M builder, Q quality,
-  H panel. `builder=single|current` switches to the single-mesh builder (experiment); `tris=1` adds triangle counts.
-- `/mockups/single-mesh/plans/`: the same body-plan mockup, opening with the single-mesh builder (all 12 plans).
-- `/mockups/single-mesh/` (`src/mockups/single-mesh.*`): **experiment**: single-mesh animals next to the current
-  builder, one species per row (the overview shows lion, zebra, giraffe, elephant). URL params: `species=<id>|all`,
-  `view=game|side|front|rear`, `pose=`, `builder=both|old|new`, `quality=`, `sex=`, `babies=0`, `zoom=`, `wire=1`,
-  `seeds=4` (individuals with different coats), `still=1`, `ui=0`. Report: `docs/experiments/single-mesh-opus-low.md`.
+  Keys: 1–4 pose, ←/→ body plan, 0 overview, U same size, F faceted, B babies, R turntable, Q quality, H panel.
+  `tris=1` adds triangle counts.
 
 ## Key files
 
@@ -64,26 +59,20 @@ Not yet: `bun run build:app` (Capacitor, `mobile/`), the service worker, analyti
 - `src/data/species.js`: the 233-species catalogue, **generated** from `docs/species.md` (a test checks they match).
 - `src/data/palette.js`, `src/data/quality.js`: world colours; quality tiers (`low`/`medium`/`high`: DPR cap,
   shadows, geometry detail, animal draw budget).
-- `src/scene/animals/`: code-built animals. `buildAnimal(id, { sex, age })` → `{ group, rig, look }`;
-  `animate(rig, pose, t)` with poses `idle | walk | eat | sleep`. One builder per family of body plans
-  (`quadruped.js`: hoof, cat, dog, bear, small, pachy; `bird.js`: bird-walk, bird-perch, penguin; `pinniped.js`;
-  `reptile.js`: lizard, turtle). Species parameters live in `looks.js` (metres, radii; `male`/`female`/`baby`
-  overrides). Coat patterns (`patterns.js`) are painted into the vertices as two colours plus a mask field; the
-  shared animal material (`rig.js`) draws the edge per pixel, and cell patterns (giraffe patches, spots) are
-  computed in its shader from the rest position. So every animal uses one material and no textures, and edges
-  stay crisp. Bodies are deformed spheres (`torso`, `egg` in `shapes.js`) with poles at front and back, so
-  patterns interpolate cleanly over the back. Animating resets the rig's parts to rest every frame and never touches the
-  animal's own position, rotation or scale.
-- `src/scene/animals/mesh/` (experiment): one skinned mesh per animal. `buildAnimal(id, { sex, age, seed, detail,
-  cache })` and `animate(rig, pose, t, opts)` as above. A code-built quad cage (`cage.js`: lofted spine tube, limbs
-  extruded from its faces; profiles per plan in `quadruped.js`) is Catmull-Clark subdivided to its limit surface
-  (`subdivide.js`); skin weights and coat channels ride the same stencils. The shared material (`material.js`) paints
-  stripes, patches, spots and markings per pixel; the individual's seed travels in bone 0 of the skeleton, so
-  geometry is shared per species, sex, age and detail. Cage builders per plan family: `quadruped.js`, `bird.js`,
-  `pinniped.js`, `reptile.js` (`info.kind` picks the pose family in `animate*.js`). Species extras in `mesh/looks.js`
-  (quadrupeds, with per-plan defaults), `looks-birds.js`, `looks-reptiles.js`. Detail tiers (`detailSettings` in
-  `mesh/index.js`, `settings.tier`) sample the same limit surface: high subdivides the cage twice, low subdivides the
-  same cage once, and medium subdivides once a cage with twice the rings.
+- `src/scene/animals/`: code-built animals, one skinned mesh each. `buildAnimal(id, { sex, age, seed, detail, cache })`
+  → `{ group, rig, look }`; `animate(rig, pose, t, opts)` with poses `idle | walk | eat | sleep`. Pass the quality
+  tier's `detail`; `cache: true` shares geometry per species, sex, age and detail. A code-built quad cage (`cage.js`:
+  lofted spine tube, limbs extruded from its faces) is Catmull-Clark subdivided to its limit surface (`subdivide.js`);
+  skin weights and coat channels ride the same stencils. Cage builders per plan family: `quadruped.js` (hoof, cat,
+  dog, bear, small, pachy), `bird.js` (bird-walk, bird-perch, penguin), `pinniped.js`, `reptile.js` (lizard,
+  turtle); `info.kind` picks the pose family in `animate*.js`. Species sizes live in `looks.js` (metres, radii;
+  `male`/`female`/`baby` overrides); ears, head pitch, paint and shape tweaks in `looks-quadrupeds.js` (with
+  per-plan defaults), `looks-birds.js`, `looks-reptiles.js`. The shared material (`material.js`) paints stripes,
+  patches, spots and markings per pixel, so every animal uses one material and no textures. The individual's seed
+  travels in bone 0 of the skeleton. Detail tiers (`detailSettings` in `index.js`) sample the same limit surface:
+  high subdivides the cage twice, low subdivides the same cage once, and medium subdivides once a cage with twice
+  the rings. Animating resets the bones to rest every frame and never touches the animal's own position, rotation or
+  scale.
 - `src/scene/backdrop.js`: sky dome, warm sun + hemisphere light, seeded meadow with trees and rocks.
 - `src/engine/renderer.js`: WebGL renderer with quality tiers, clamped dt, context-loss rebuild, background pause,
   and `step(frames)` for driving it by hand. `src/engine/platform.js`: runtime platform questions.

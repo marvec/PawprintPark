@@ -1,5 +1,5 @@
-// Single-mesh looks for pinnipeds, lizards and tortoises: same scheme as looks.js (sizes and colours stay in
-// ../looks.js; this adds paint, head pitch, eyes and a few shape knobs). Markings are signed fields over a vertex's
+// Mesh looks for pinnipeds, lizards and tortoises: same scheme as looks-quadrupeds.js (sizes stay in looks.js;
+// this adds paint, head pitch, eyes and a few shape knobs). Markings are signed fields over a vertex's
 // rest position and channels (cage.js CHANNELS), positive inside; later markings win where they overlap.
 
 import { PAT_PATCHES, PAT_SPOTS } from './material.js';
