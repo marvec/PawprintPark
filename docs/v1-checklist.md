@@ -8,7 +8,7 @@ milestone that delivers it ([milestones.md](milestones.md)). A line is ticked on
 
 | Milestone | Mockup | Status | Review notes |
 |---|---|---|---|
-| 2 | World: terrain, enclosures, props, keeper, weather | awaiting review | |
+| 2 | World: terrain, enclosures, props, keeper, weather | awaiting review | Page `/mockups/world/`; screenshots and per-tier costs in [mockups/world/](mockups/world/README.md) |
 | 3 | HUD and UI | awaiting review | |
 | 7 | People and buildings | awaiting review | |
 
@@ -76,7 +76,7 @@ milestone that delivers it ([milestones.md](milestones.md)). A line is ticked on
 |---|---|---|---|
 | [x] | Enclosure sizes S (6×6), M (10×10), L (14×14), XL (20×20) | 1 | `src/data/world.js` `ENCLOSURE_SIZES`; `paths.test.js › automatic paths › a new enclosure gets a route…` (M footprint) |
 | [ ] | Enclosures are bought with stars as biome + size, then placed and rotated | 6 | |
-| [ ] | The 8 v1 biomes, each drawn distinctly | 2 | |
+| [x] | The 8 v1 biomes, each drawn distinctly | 2 | `docs/mockups/world/biome-*-{high,low}.jpg`; `worldScene.test.js › enclosures › every v1 biome builds, with a spot for each resident` |
 | [ ] | The Reptile & Amphibian House is a building with indoor tanks | 5 | |
 | [ ] | Every enclosure has a feeder and a water point; more can be installed | 5 | |
 | [ ] | Equipment: shelters, heaters, coolers, pools, climbing frames, enrichment toys, feeding chutes | 5 | |
@@ -224,8 +224,8 @@ milestone that delivers it ([milestones.md](milestones.md)). A line is ticked on
 
 | ✓ | Requirement | M | Proof |
 |---|---|---|---|
-| [ ] | Warm pastel palette, low warm sun, gentle haze | 2 | |
-| [ ] | Toy-like animals, guests, staff and props; faceted scenery | 2, 7 | |
+| [x] | Warm pastel palette, low warm sun, gentle haze | 2 | `docs/mockups/world/*.jpg` (day, dawn, dusk, night, rain, snow, heat); `worldScene.test.js › atmosphere › …` |
+| [ ] | Toy-like animals, guests, staff and props; faceted scenery | 2, 7 | M2 part: keeper, cart, props and scenery in `docs/mockups/world/` (`keeper-*.jpg`, `equipment-*.jpg`); guests in M7 |
 | [ ] | Quality tiers: pixel ratio, shadows, best animal mesh, visitor count; foliage sway and post-processing on High only | 10 | |
 | [ ] | Full-detail animals up to a budget per tier (~40/80/150); staff with a smaller budget | 10 | |
 | [ ] | Detail by distance with a margin; the tier caps the best resolution | 10 | |
@@ -285,6 +285,48 @@ The milestone 1 decisions below were approved on 2026-11-07.
 - **Animal stat bars** (M1): stored as 0–100, where 100 is full and good (`food`, `water` rather than
   hunger/thirst). The UI can still label them Hunger and Thirst.
 
+The milestone 2 decisions below are part of the world mockup review.
+
+- **Tile size** (M2): one tile is 2 m. Paths are 2 m wide, an S enclosure is 12×12 m and an XL 40×40 m; hills
+  rise to 12 m.
+- **Camera** (M2): the 3/4 view looks across the grid at 45° and turns in 90° steps. It looks down at about 35°
+  up close and 62° in the overview. The overview draws no animal models (PRD §17.1).
+- **Fences per biome** (M2):
+  - Farmyard: white post and rail.
+  - African Savanna: log posts with wires.
+  - Asian Jungle: bamboo.
+  - Polar & Tundra and Coast & Sea: a low wall with glass.
+  - Wetland & Rivers: dark boardwalk rails.
+  - Aviary: a net on posts.
+  - Reptile & Amphibian House: the building's walls.
+- **Wear** (M2):
+  - A worn fence turns weathered grey; posts lean and some top rails are missing.
+  - A broken fence has also lost one front section, which lies inside the enclosure.
+  - A worn Aviary net turns grey-brown; a broken one has a torn flap.
+- **Habitat levels** (M2):
+  - Level 0: bare, trampled ground.
+  - Level 1: a few biome plants.
+  - Level 2: more plants and trees, glass viewing panes beside the keeper gate, and an info board.
+  - Level 3: a lush habitat with a viewing deck, flower beds and a small pond.
+- **Buildings** (M2):
+  - The Reptile & Amphibian House has glass tanks along its back and sides and a walkway down the middle. Its roof
+    lifts when the camera comes close; the game could also lift it when the keeper goes inside.
+  - The Aviary is a net tent: 6 m walls and a 9.5 m mast, with birds on perches.
+- **Weather and night** (M2):
+  - Snow whitens every upward face. Paths keep only a dusting, as if swept, and the Reptile House floor stays dry.
+  - Rain darkens and greys the world.
+  - A heat wave turns grass to straw.
+  - Night is blue moonlight. Path lamps glow but light nothing around them, because real lights cost too much on
+    phones.
+- **The road in** (M2): a road leads off the map from the gate's outer side.
+- **Mockup page text** (M2): labels in the world come from the strings table. The page's own control panel is
+  dev-only English, like the body-plan mockup.
+
 ## Problems
 
-(none yet)
+- **Trees are never culled** (M2): each tree part is one instanced mesh over the whole map, so every tree is
+  drawn every frame, close up too. That is 252k triangles on High and 52k on Low (`docs/mockups/world/README.md`).
+  Proposed change: split the scatter into instanced chunks by plot group in M10, as the terrain already is.
+- **Skinned animals skip frustum culling** (M2): the animal builder sets `frustumCulled = false`. The world
+  mockup checks each animal against the camera's frustum itself, which cut the keeper close-up from 1.47M to
+  0.37M triangles on High. Proposed change: M10's draw selection does the same check.

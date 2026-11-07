@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <title>The world (v1): Pawprint Park art-direction mockup</title>
+    <style>
+      :root {
+        --ink: #3b2f25;
+        --paper: #fff8ec;
+        --accent: #e08a3a;
+        --muted: #8a7a66;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #f1dfc0;
+        color: var(--ink);
+        font: 14px/1.4 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        touch-action: none;
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
+        overscroll-behavior: none;
+      }
+      canvas#view {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+      #panel {
+        position: fixed;
+        top: max(12px, env(safe-area-inset-top));
+        left: max(12px, env(safe-area-inset-left));
+        width: 290px;
+        max-height: calc(100% - 24px);
+        overflow: auto;
+        background: color-mix(in srgb, var(--paper) 92%, transparent);
+        border-radius: 18px;
+        padding: 14px 16px;
+        box-shadow: 0 6px 24px rgb(80 50 20 / 0.18);
+        backdrop-filter: blur(6px);
+      }
+      #panel.hidden {
+        display: none;
+      }
+      h1 {
+        font-size: 17px;
+        margin: 0 0 2px;
+      }
+      .sub {
+        color: var(--muted);
+        margin: 0 0 10px;
+        font-size: 12.5px;
+      }
+      .group {
+        margin: 10px 0 0;
+      }
+      .label {
+        font-size: 11.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+        margin-bottom: 4px;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      button {
+        font: inherit;
+        color: var(--ink);
+        background: #f3e6cf;
+        border: 0;
+        border-radius: 999px;
+        padding: 6px 11px;
+        min-height: 32px;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #ecd9b8;
+      }
+      button[aria-pressed='true'] {
+        background: var(--accent);
+        color: white;
+      }
+      button:focus-visible {
+        outline: 3px solid #5a8ad8;
+        outline-offset: 1px;
+      }
+      kbd {
+        font: 11px ui-monospace, monospace;
+        background: #eadcc4;
+        border-radius: 4px;
+        padding: 0 4px;
+      }
+      .keys {
+        margin-top: 12px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .tag {
+        font: 600 13px/1.2 system-ui, sans-serif;
+        color: var(--ink);
+        background: color-mix(in srgb, var(--paper) 88%, transparent);
+        padding: 3px 9px;
+        border-radius: 999px;
+        white-space: nowrap;
+        pointer-events: none;
+        box-shadow: 0 2px 8px rgb(80 50 20 / 0.15);
+      }
+      .tag small {
+        font-weight: 400;
+        color: var(--muted);
+      }
+      .sign {
+        font: 700 15px/1.2 system-ui, sans-serif;
+        color: white;
+        background: #7a5a3a;
+        padding: 5px 12px;
+        border-radius: 8px;
+        pointer-events: none;
+        white-space: nowrap;
+      }
+      .sign small {
+        display: block;
+        font-weight: 400;
+        font-size: 11.5px;
+        opacity: 0.85;
+      }
+      #toggle {
+        position: fixed;
+        top: max(12px, env(safe-area-inset-top));
+        right: max(12px, env(safe-area-inset-right));
+      }
+      .tag.small {
+        font-size: 11.5px;
+        padding: 2px 7px;
+      }
+      #stats {
+        position: fixed;
+        right: max(12px, env(safe-area-inset-right));
+        bottom: max(12px, env(safe-area-inset-bottom));
+        font: 11px ui-monospace, monospace;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <div id="panel" role="region" aria-label="Mockup controls">
+      <h1>The world · v1</h1>
+      <p class="sub">Terrain, paths, enclosures, equipment, the keeper and the cart, time of day and weather.</p>
+      <div class="group">
+        <div class="label">Focus</div>
+        <div class="row" id="focus"></div>
+      </div>
+      <div class="group">
+        <div class="label">Biome</div>
+        <div class="row" id="biome"></div>
+      </div>
+      <div class="group">
+        <div class="label">Size · fence · habitat level</div>
+        <div class="row" id="size"></div>
+        <div class="row" id="wear" style="margin-top: 6px"></div>
+        <div class="row" id="upgrade" style="margin-top: 6px"></div>
+      </div>
+      <div class="group">
+        <div class="label">Time of day</div>
+        <div class="row" id="time"></div>
+      </div>
+      <div class="group">
+        <div class="label">Weather</div>
+        <div class="row" id="weather"></div>
+      </div>
+      <div class="group">
+        <div class="label">Camera and view</div>
+        <div class="row" id="view-buttons"></div>
+      </div>
+      <div class="group">
+        <div class="label">Quality</div>
+        <div class="row" id="quality"></div>
+      </div>
+      <div class="keys">
+        <kbd>←</kbd><kbd>→</kbd> focus · <kbd>0</kbd> overview · <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> pan ·
+        <kbd>Q</kbd><kbd>E</kbd> rotate 90° · <kbd>+</kbd><kbd>−</kbd> zoom · <kbd>B</kbd> biome · <kbd>Z</kbd> size ·
+        <kbd>F</kbd> fence · <kbd>U</kbd> level · <kbd>T</kbd> time · <kbd>Y</kbd> weather · <kbd>G</kbd> grid ·
+        <kbd>R</kbd> roofs · <kbd>L</kbd> labels · <kbd>X</kbd> quality · <kbd>H</kbd> hide panel.
+        Drag to pan, scroll or pinch to zoom, click or tap an enclosure to focus it.
+      </div>
+    </div>
+    <button id="toggle" aria-label="Show or hide the controls">☰</button>
+    <div id="stats" aria-hidden="true"></div>
+    <script type="module" src="./world.js"></script>
+  </body>
+</html>

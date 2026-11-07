@@ -37,7 +37,8 @@ bun run preview    # serve dist/ → http://localhost:4427
 bun test           # all tests (they gate the deploy)
 bun run sim        # economy pacing simulation: [--v1] [--until=180] [--key=value] (docs/economy.md §7)
 bun scripts/species-from-md.js            # regenerate src/data/species.js after editing docs/species.md
-bun scripts/screenshot.js <url> <out.png> # headless-Chrome screenshot (port 9438, CDP_PORT overrides); WIDTH, HEIGHT, WAIT env vars
+bun scripts/screenshot.js <url> <out.png> # headless-Chrome screenshot (port 9438, CDP_PORT overrides); WIDTH, HEIGHT, WAIT env vars; .jpg saves JPEG
+bun scripts/world-mockup-shots.js [--only=a,b]   # world mockup screenshots, High and Low → docs/mockups/world/ (dev server on 5428)
 ```
 
 Not yet: `bun run build:app` (Capacitor, `mobile/`), the service worker, analytics. Saves exist in the core
@@ -53,6 +54,16 @@ Not yet: `bun run build:app` (Capacitor, `mobile/`), the service worker, analyti
   screenshot can catch a blink). `bun scripts/screenshot.js` takes `EVAL='expr'` to print page state.
   Keys: 1–4 pose, ←/→ body plan, 0 overview, U same size, F faceted, B babies, R turntable, Q quality, H panel.
   `tris=1` adds triangle counts.
+
+- `/mockups/world/` (`src/mockups/world/`): **art-direction mockup of the world**. The milestone-1 map (seed 6)
+  with the starting zoo plus a showcase placed through the real path rules (`layout.js`): the 8 v1 biomes, sizes
+  S–XL, fence wear, dirt, habitat levels 0–3, every piece of equipment, the keeper and the golf cart. No game
+  systems run on it. URL params: `focus=overview|start|biomes|sizes|wear|upgrades|equipment|houses|keeper`, or one
+  enclosure by `biome=<id>`, `size=S|M|L|XL`, `wear=new|worn|broken`, `upgrade=0-3`; `time=dawn|day|dusk|night`,
+  `weather=sun|rain|snow|heat`, `quality=`, `rot=0-3`, `zoom=2`, `grid=1`, `roofs=0|1`, `labels=0`, `ui=0`,
+  `still=1`, `seed=`. Keys: ←/→ focus, 0 overview, WASD pan, Q/E rotate 90°, +/− zoom, B biome, Z size, F fence,
+  U level, T time, Y weather, G grid, R roofs, L labels, X quality, H panel; drag pans, scroll or pinch zooms,
+  click or tap an enclosure to focus it. Screenshots and per-tier costs: `docs/mockups/world/`.
 
 ## Key files
 
@@ -109,6 +120,23 @@ Not yet: `bun run build:app` (Capacitor, `mobile/`), the service worker, analyti
   high subdivides the cage twice, low subdivides the same cage once, and medium subdivides once a cage with twice
   the rings. Animating resets the bones to rest every frame and never touches the animal's own position, rotation or
   scale.
+- `src/scene/world/`: the world scene (approved visuals feed milestone 4). One tile is `TILE` = 2 m; map heights
+  are in tiles too.
+  - `index.js`: `buildWorldScene({ map, plots, placements, network, name, materials, detail, sign })` → terrain,
+    scatter, paths, lamps, one entry per placement (`enclosures[]` with animal `spots` and equipment `labels`),
+    `setRoofs(visible)`.
+  - `kit.js`: `createKit()` merges flat-shaded, vertex-coloured parts into one geometry (one draw call per
+    enclosure); `withinAll(kits, frame, fn)`; `placementFrame(rect, rot)` (local +z = the placement's front);
+    `createWorldMaterials()`; `WEATHER_UNIFORMS` (`uSnow`, `uWet`, `uDry`) shared by every world material.
+  - `terrain.js`: 5×5 terrain chunks (the shader draws the grid, plot borders and muted locked plots), water,
+    land beyond the map, paths with kerbs, instanced trees and rocks (cleared under footprints and paths).
+  - `enclosures.js`: `buildEnclosure(placement, look, ctx)`: biome ground, fences per biome (`BIOME_LOOKS`) in
+    `new`/`worn`/`broken`, habitat levels 0–3 (more plants; glass panes and an info board from 2; a viewing deck,
+    flower beds and a pond at 3), equipment, poop and dirt, the Reptile House (tanks, liftable roof) and the Aviary
+    (net).
+  - `props.js` (equipment, plants, gate, storehouse, lamps), `people.js` (`buildKeeper`, `animateKeeper` with
+    `walk`/`idle`/`sit`, `buildCart`), `atmosphere.js` (`createAtmosphere`: `TIMES`, `WEATHERS`, sky, sun, fog,
+    stars, rain and snow on the GPU), `sign.js` (the gate's name board; browser only).
 - `src/scene/backdrop.js`: sky dome, warm sun + hemisphere light, seeded meadow with trees and rocks.
 - `src/engine/renderer.js`: WebGL renderer with quality tiers, clamped dt, context-loss rebuild, background pause,
   and `step(frames)` for driving it by hand. `src/engine/platform.js`: runtime platform questions.
@@ -121,6 +149,11 @@ Not yet: `bun run build:app` (Capacitor, `mobile/`), the service worker, analyti
 - `__pawprint.world(seed, name)`: a new zoo's world state. `__pawprint.map(seed)`: a map summary (water, trees,
   rocks, path tiles). `__pawprint.slots()`: the slots and storage use on this origin. `__pawprint.saveNew(seed)`:
   save a fresh zoo into a new slot.
+- `__pawprint.worldMockup(query)`: open the world mockup with URL parameters.
+- `__world.{ state, rig, zoo, focusOn(stop), focusBiome(id), focusSize(s), focusWear(w), focusUpgrade(n), rotate(±1),
+  setTime(t), setWeather(w), setQuality(q), perf(frames), built() }` (world mockup). `perf()` reports draw calls and
+  triangles per part (terrain, trees, rocks, paths, enclosures, gate and storehouse, lamps, animals, keeper and
+  cart, sky and weather), the shadow pass and GPU memory.
 - `__mockup.{ state, focusOn(i), focusSpecies(id), setQuality(name), rebuild(), animals() }`: drive the mockup.
 - `__mockup.perf(frames = 20)` (body-plan mockup): what a frame costs, from `renderer.info`. It reports:
   - draw calls and triangles per part (animals, trees, rocks, ground, sky, strips), measured by hiding each part;

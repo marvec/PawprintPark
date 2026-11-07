@@ -3,6 +3,7 @@
 //   bun scripts/screenshot.js <url> <out.png> [<url> <out.png> ...]
 //   WIDTH=1600 HEIGHT=1000 WAIT=4000 bun scripts/screenshot.js http://localhost:5427/mockups/body-plans/ shot.png
 //   EVAL='__mockup.state' bun scripts/screenshot.js ...   (prints the expression's value, as JSON, before each capture)
+//   An output ending in .jpg is saved as JPEG (quality 82); anything else as PNG.
 //
 // Uses debugging port 9438 (CLAUDE.md: the port for agents and tools; CDP_PORT overrides it) and stops the Chrome it
 // started.
@@ -71,7 +72,9 @@ try {
       const r = await send('Runtime.evaluate', { expression: `JSON.stringify(${EVAL})`, returnByValue: true });
       console.log(`${out} eval: ${r.result.result?.value ?? r.result.exceptionDetails?.text}`);
     }
-    const shot = await send('Page.captureScreenshot', { format: 'png' });
+    // .jpg outputs are saved as JPEG (smaller files for docs), anything else as PNG.
+    const jpeg = /\.jpe?g$/i.test(out);
+    const shot = await send('Page.captureScreenshot', jpeg ? { format: 'jpeg', quality: 82 } : { format: 'png' });
     await writeFile(out, Buffer.from(shot.result.data, 'base64'));
     console.log(`${out}${errors.length ? `  (page errors: ${errors.join(' | ')})` : ''}`);
   }
