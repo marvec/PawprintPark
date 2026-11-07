@@ -40,7 +40,8 @@ bun scripts/species-from-md.js            # regenerate src/data/species.js after
 bun scripts/screenshot.js <url> <out.png> # headless-Chrome screenshot (port 9438, CDP_PORT overrides); WIDTH, HEIGHT, WAIT env vars
 ```
 
-Not yet: `bun run build:app` (Capacitor, `mobile/`), the service worker, analytics, saves.
+Not yet: `bun run build:app` (Capacitor, `mobile/`), the service worker, analytics. Saves exist in the core
+(`src/core/slots.js`) but the game doesn't use them until milestone 4.
 
 ## Pages
 
@@ -56,6 +57,41 @@ Not yet: `bun run build:app` (Capacitor, `mobile/`), the service worker, analyti
 ## Key files
 
 - `src/core/rng.js`: `createRng(seed)`, `hashString(str)`.
+- `src/core/time.js`: clock and calendar. `createClock()`, `advanceClock(clock, realSeconds)` returns the hour,
+  day, month and year boundaries crossed (each once). `setSpeed` (0–3), `skipNight` (12× until 6:00),
+  `calendarOf(minute)`, `phaseOf`, `daylight`, `isZooOpen`. Time is in-game minutes since 1 January, year 1; a
+  new zoo starts on 1 March at 7:00.
+- `src/core/map.js`: `generateMap(seed)`, 240×240 tiles with corner `heights`, `water` tiles, `waterBody`
+  (river or lake), `trees`, `rocks` and the flat `start` area. Each feature uses its own hashed RNG stream, and
+  `tests/map.test.js` pins two seeds' fingerprints. If you change the generator on purpose, update them and say so
+  in the commit (every zoo changes shape). Also `heightAt`, `isWater`, `tileSlope`, `isLand`.
+- `src/core/plots.js`: land plots (24×24 tiles, 10×10 of them); the state stores unlocked plot indices.
+  `startingPlots`, `buyablePlots`, `unlockPlot`, `plotStarCost`.
+- `src/core/paths.js`: automatic paths. A placement is `{ id, kind, x, z, rot, size? }`; its front (+z at rot 0)
+  connects to the network. `buildPathNetwork(map, plots, placements)` replays placements in order: the gate's
+  12-tile avenue, then the cheapest route from each door. `canPlace(...)` returns `{ ok, route }` or a `reason`
+  (`off-map`, `locked`, `water`, `steep`, `overlap`, `path`, `no-path`). Paths are derived, never saved.
+- `src/core/layout.js`: the starting layout: gate, storehouse, two Farmyard S enclosures.
+- `src/core/state.js`: the world state.
+  - `createWorld({ seed, name })` builds a new zoo, including the neglected sheep.
+  - `serialize` / `deserialize` handle saves. Loading merges the save over defaults (and `clock` and `flags` one
+    level down) and refuses saves from newer versions.
+  - State keys: `version`, `seed`, `name`, `clock`, `coins`, `stars`, `plots`, `placements` (enclosures carry
+    `biome`, `name` and `care`), `animals`, `flags`, `nextId`.
+- `src/core/slots.js`: `createSlotStore(storage)` works on any localStorage-like store, under the `pawprint.`
+  prefix (index `pawprint.slots`, saves under `pawprint.slot.<id>`, thumbnails under `pawprint.thumb.<id>`).
+  - Slots: `list`, `save`, `load`, `thumbnail`, `remove`.
+  - `usage()` reports storage use, with `nearlyFull` from 80% of 5 MB.
+  - `exportSlot` and `importSlot` move a slot in and out as a file.
+  - Storage errors come back as `{ ok: false }`, never thrown.
+- `src/core/strings.js` + `src/data/strings.js`: the strings table (all UI text). `createStrings(lang).t(key,
+  params)` fills `{placeholders}` and plural forms (`count`), and falls back to English and then to the key.
+  `formatDate`, `formatTime`.
+- `src/data/world.js`: map, plot and start-area sizes, `ENCLOSURE_SIZES`, `BIOMES` (16, the first 8 in v1; ids
+  match `species.js`), `FOOTPRINTS`. `src/data/economy.js`: `ECONOMY`, every economy number (fills up in
+  milestone 6).
+- `docs/milestones.md` (the v1 plan and the rules for each milestone) and `docs/v1-checklist.md` (every v1
+  requirement with its proof, mockup review status, decisions to review).
 - `src/data/species.js`: the 233-species catalogue, **generated** from `docs/species.md` (a test checks they match).
 - `src/data/palette.js`, `src/data/quality.js`: world colours; quality tiers (`low`/`medium`/`high`: DPR cap,
   shadows, geometry detail, animal draw budget).
@@ -82,6 +118,9 @@ Not yet: `bun run build:app` (Capacitor, `mobile/`), the service worker, analyti
 - `__step(frames)`: advance the render loop by hand (game and mockup).
 - `__pawprint.mockup()`: open the body-plan mockup (game, dev only; `src/debug.js` is stripped from production and
   `tests/devOnly.test.js` checks it).
+- `__pawprint.world(seed, name)`: a new zoo's world state. `__pawprint.map(seed)`: a map summary (water, trees,
+  rocks, path tiles). `__pawprint.slots()`: the slots and storage use on this origin. `__pawprint.saveNew(seed)`:
+  save a fresh zoo into a new slot.
 - `__mockup.{ state, focusOn(i), focusSpecies(id), setQuality(name), rebuild(), animals() }`: drive the mockup.
 - `__mockup.perf(frames = 20)` (body-plan mockup): what a frame costs, from `renderer.info`. It reports:
   - draw calls and triangles per part (animals, trees, rocks, ground, sky, strips), measured by hiding each part;
