@@ -75,6 +75,9 @@ Related docs: [species.md](species.md) (full species catalogue) and [web-game-ha
 
 - Enclosures are bought with **stars** as a **biome + size**: S (6×6), M (10×10), L (14×14) and XL (20×20).
   Then they're placed and rotated on the grid.
+- **Joining**: two enclosures of the same biome that share a side can be joined into one. The fence between them
+  comes down, and their animals, equipment, cleanliness and habitat share one enclosure. This is how enclosures
+  grow past XL; there is no bigger size. Joined enclosures can be split again.
 - **Biomes** (16; v1 ships the first 8):
   1. Farmyard
   2. African Savanna

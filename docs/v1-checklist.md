@@ -8,7 +8,7 @@ milestone that delivers it ([milestones.md](milestones.md)). A line is ticked on
 
 | Milestone | Mockup | Status | Review notes |
 |---|---|---|---|
-| 2 | World: terrain, enclosures, props, keeper, weather | awaiting review | Page `/mockups/world/`; screenshots and per-tier costs in [mockups/world/](mockups/world/README.md) |
+| 2 | World: terrain, enclosures, props, keeper, weather | approved | Approved 2026-11-08. Page `/mockups/world/`; screenshots and per-tier costs in [mockups/world/](mockups/world/README.md). Review: camera, fences, wear, levels, snow, night, locked land and buildings fine. Changed after review: no lamp at a gate or against a fence; the keeper is 1.8 m; the ground no longer flickers from far away; enclosures grow by joining (PRD §5). |
 | 3 | HUD and UI | awaiting review | |
 | 7 | People and buildings | awaiting review | |
 
@@ -76,6 +76,7 @@ milestone that delivers it ([milestones.md](milestones.md)). A line is ticked on
 |---|---|---|---|
 | [x] | Enclosure sizes S (6×6), M (10×10), L (14×14), XL (20×20) | 1 | `src/data/world.js` `ENCLOSURE_SIZES`; `paths.test.js › automatic paths › a new enclosure gets a route…` (M footprint) |
 | [ ] | Enclosures are bought with stars as biome + size, then placed and rotated | 6 | |
+| [ ] | Adjacent enclosures of the same biome can be joined into one (and split again) | 5 | |
 | [x] | The 8 v1 biomes, each drawn distinctly | 2 | `docs/mockups/world/biome-*-{high,low}.jpg`; `worldScene.test.js › enclosures › every v1 biome builds, with a spot for each resident` |
 | [ ] | The Reptile & Amphibian House is a building with indoor tanks | 5 | |
 | [ ] | Every enclosure has a feeder and a water point; more can be installed | 5 | |
@@ -285,7 +286,7 @@ The milestone 1 decisions below were approved on 2026-11-07.
 - **Animal stat bars** (M1): stored as 0–100, where 100 is full and good (`food`, `water` rather than
   hunger/thirst). The UI can still label them Hunger and Thirst.
 
-The milestone 2 decisions below are part of the world mockup review.
+The milestone 2 decisions below were approved on 2026-11-08.
 
 - **Tile size** (M2): one tile is 2 m. Paths are 2 m wide, an S enclosure is 12×12 m and an XL 40×40 m; hills
   rise to 12 m.
@@ -318,6 +319,9 @@ The milestone 2 decisions below are part of the world mockup review.
   - A heat wave turns grass to straw.
   - Night is blue moonlight. Path lamps glow but light nothing around them, because real lights cost too much on
     phones.
+- **Bigger enclosures** (M2 review): adjacent enclosures of the same biome can be joined into one, which is how
+  they grow past XL; there is no XXL (PRD §5).
+- **Keeper height** (M2 review): 1.8 m.
 - **The road in** (M2): a road leads off the map from the gate's outer side.
 - **Mockup page text** (M2): labels in the world come from the strings table. The page's own control panel is
   dev-only English, like the body-plan mockup.

@@ -3,7 +3,7 @@
 // separate from the renderer): plain Object3D trees, tested under bun test without WebGL.
 
 import * as THREE from 'three';
-import { footprintRect, eachTile } from '../../core/paths.js';
+import { doorTile, footprintRect, eachTile } from '../../core/paths.js';
 import { buildEnclosure } from './enclosures.js';
 import { TILE, createKit, placementFrame, withinAll } from './kit.js';
 import { addGate, addLampPost, addStorehouse } from './props.js';
@@ -95,7 +95,14 @@ export function buildWorldScene({ map, plots, placements, network, name, materia
     enclosures.push({ placement: p, group: g, spots: [], labels: [], centre });
   }
 
-  const lamps = buildLamps(map, network.path, materials);
+  // Lamps keep clear of footprints and of the path tiles at each door, so none stands in a gateway.
+  const doors = new Set();
+  for (const p of placements) {
+    const d = doorTile(p);
+    for (const [dx, dz] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) doors.add((d.z + dz) * n + d.x + dx);
+  }
+  const lampFree = (x, z) => !doors.has(z * n + x);
+  const lamps = buildLamps(map, network.path, materials, { free: lampFree, occupied: (x, z) => x >= 0 && z >= 0 && x < n && z < n && occupied[z * n + x] === 1 });
   group.add(lamps.group);
 
   return {
@@ -133,24 +140,27 @@ export function buildWorldScene({ map, plots, placements, network, name, materia
  */
 function addRoad(kit, back) {
   const len = 160;
-  kit.add(new THREE.BoxGeometry(14, 0.06, 6), 0xe6d3a8, { y: -0.01, z: -back - 3 });
-  kit.add(new THREE.BoxGeometry(8, 0.05, len), 0x8f897c, { y: -0.03, z: -back - 6 - len / 2 });
-  for (const x of [-4.1, 4.1]) kit.add(new THREE.BoxGeometry(0.25, 0.12, len), 0xc9b48a, { x, y: 0, z: -back - 6 - len / 2 });
-  for (let z = 4; z < len; z += 6) kit.add(new THREE.BoxGeometry(0.22, 0.06, 2.6), 0xf2ead2, { y: 0, z: -back - 6 - z });
+  // Layers stay several centimetres apart (plaza and road above the land, markings above the road), or they
+  // flicker against each other from far away.
+  kit.add(new THREE.BoxGeometry(14, 0.1, 6), 0xe6d3a8, { y: 0.03, z: -back - 3 });
+  kit.add(new THREE.BoxGeometry(8, 0.1, len), 0x8f897c, { y: 0.02, z: -back - 6 - len / 2 });
+  for (const x of [-4.1, 4.1]) kit.add(new THREE.BoxGeometry(0.25, 0.16, len), 0xc9b48a, { x, y: 0.05, z: -back - 6 - len / 2 });
+  for (let z = 4; z < len; z += 6) kit.add(new THREE.BoxGeometry(0.22, 0.04, 2.6), 0xf2ead2, { y: 0.09, z: -back - 6 - z });
 }
 
 /**
  * Path lamps every few tiles where a path has a free edge: instanced posts and lanterns, plus glow sprites the
  * scene fades in at dusk and night.
  */
-function buildLamps(map, path, materials) {
+function buildLamps(map, path, materials, { free = () => true, occupied = () => false } = {}) {
   const n = map.size;
   const isPath = (x, z) => x >= 0 && z >= 0 && x < n && z < n && path[z * n + x] === 1;
   const spots = [];
   for (let z = 0; z < n; z++) {
     for (let x = 0; x < n; x++) {
-      if (!isPath(x, z) || (x * 3 + z * 5) % 7 !== 0) continue;
-      const sides = [[0, -1], [1, 0], [0, 1], [-1, 0]].filter(([dx, dz]) => !isPath(x + dx, z + dz));
+      if (!isPath(x, z) || (x * 3 + z * 5) % 7 !== 0 || !free(x, z)) continue;
+      // A lamp stands on a path edge that faces open land, never against a fence or a building.
+      const sides = [[0, -1], [1, 0], [0, 1], [-1, 0]].filter(([dx, dz]) => !isPath(x + dx, z + dz) && !occupied(x + dx, z + dz));
       if (!sides.length) continue;
       const [dx, dz] = sides[0];
       const px = (x + 0.5 + dx * 0.42) * TILE;

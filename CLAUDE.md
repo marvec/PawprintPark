@@ -123,8 +123,9 @@ Not yet: `bun run build:app` (Capacitor, `mobile/`), the service worker, analyti
 - `src/scene/world/`: the world scene (approved visuals feed milestone 4). One tile is `TILE` = 2 m; map heights
   are in tiles too.
   - `index.js`: `buildWorldScene({ map, plots, placements, network, name, materials, detail, sign })` → terrain,
-    scatter, paths, lamps, one entry per placement (`enclosures[]` with animal `spots` and equipment `labels`),
-    `setRoofs(visible)`.
+    scatter, paths, lamps (never in a gateway or against a fence), one entry per placement (`enclosures[]` with animal `spots` and equipment `labels`),
+    `setRoofs(visible)`. Layers sit at least 5 cm apart (enclosure floors 10 cm above the terrain), and the
+    camera's near plane moves out with zoom (`dist × 0.03`, 0.3–20 m); otherwise the ground flickers from far away.
   - `kit.js`: `createKit()` merges flat-shaded, vertex-coloured parts into one geometry (one draw call per
     enclosure); `withinAll(kits, frame, fn)`; `placementFrame(rect, rot)` (local +z = the placement's front);
     `createWorldMaterials()`; `WEATHER_UNIFORMS` (`uSnow`, `uWet`, `uDry`) shared by every world material.
@@ -134,7 +135,7 @@ Not yet: `bun run build:app` (Capacitor, `mobile/`), the service worker, analyti
     `new`/`worn`/`broken`, habitat levels 0–3 (more plants; glass panes and an info board from 2; a viewing deck,
     flower beds and a pond at 3), equipment, poop and dirt, the Reptile House (tanks, liftable roof) and the Aviary
     (net).
-  - `props.js` (equipment, plants, gate, storehouse, lamps), `people.js` (`buildKeeper`, `animateKeeper` with
+  - `props.js` (equipment, plants, gate, storehouse, lamps), `people.js` (`buildKeeper` at `KEEPER_HEIGHT` 1.8 m, `animateKeeper` with
     `walk`/`idle`/`sit`, `buildCart`), `atmosphere.js` (`createAtmosphere`: `TIMES`, `WEATHERS`, sky, sun, fog,
     stars, rain and snow on the GPU), `sign.js` (the gate's name board; browser only).
 - `src/scene/backdrop.js`: sky dome, warm sun + hemisphere light, seeded meadow with trees and rocks.

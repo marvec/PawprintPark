@@ -3,14 +3,14 @@
 
 import { describe, expect, test } from 'bun:test';
 import * as THREE from 'three';
-import { footprintRect } from '../src/core/paths.js';
+import { doorTile, footprintRect } from '../src/core/paths.js';
 import { BIOMES, ENCLOSURE_SIZES } from '../src/data/world.js';
 import { EQUIPMENT, FENCE_WEAR, UPGRADE_LEVELS, showcaseWorld } from '../src/mockups/world/layout.js';
 import { TIMES, WEATHERS, createAtmosphere } from '../src/scene/world/atmosphere.js';
 import { BIOME_LOOKS, buildEnclosure } from '../src/scene/world/enclosures.js';
 import { buildWorldScene, groundY } from '../src/scene/world/index.js';
 import { TILE, WEATHER_UNIFORMS, createKit, createWorldMaterials, placementFrame, withinAll } from '../src/scene/world/kit.js';
-import { animateKeeper, buildCart, buildKeeper } from '../src/scene/world/people.js';
+import { KEEPER_HEIGHT, animateKeeper, buildCart, buildKeeper } from '../src/scene/world/people.js';
 
 const zoo = showcaseWorld();
 const materials = createWorldMaterials();
@@ -173,6 +173,22 @@ describe('the world scene', () => {
     }
   });
 
+  test('no lamp stands in a gateway or against a fence or building', () => {
+    const n = zoo.map.size;
+    const lanterns = world.group.getObjectByName('lanterns');
+    const m = new THREE.Matrix4();
+    const p = new THREE.Vector3();
+    const doors = zoo.placements.map((pl) => doorTile(pl));
+    for (let i = 0; i < lanterns.count; i++) {
+      lanterns.getMatrixAt(i, m);
+      p.setFromMatrixPosition(m);
+      const tx = Math.floor(p.x / TILE);
+      const tz = Math.floor(p.z / TILE);
+      expect(zoo.network.path[tz * n + tx]).toBe(1);
+      for (const d of doors) expect(Math.abs(d.x - tx) + Math.abs(d.z - tz)).toBeGreaterThan(1);
+    }
+  });
+
   test('roofs can be lifted to look inside the houses', () => {
     const roofs = [];
     world.group.traverse((o) => o.name === 'roof' && roofs.push(o));
@@ -230,11 +246,10 @@ describe('the keeper and the cart', () => {
     expect(k.rig.legR.rotation.x).toBe(k.rig.legL.rotation.x);
   });
 
-  test('the keeper is about 1.75 m tall and the cart has a seat', () => {
+  test('the keeper is 1.8 m tall and the cart has a seat', () => {
     const k = buildKeeper(materials);
-    const box = new THREE.Box3().setFromObject(k.group);
-    expect(box.max.y).toBeGreaterThan(1.6);
-    expect(box.max.y).toBeLessThan(2);
+    expect(new THREE.Box3().setFromObject(k.group).max.y).toBeCloseTo(KEEPER_HEIGHT, 1);
+    expect(KEEPER_HEIGHT).toBe(1.8);
     expect(buildCart(materials).seat.y).toBeGreaterThan(0);
   });
 });

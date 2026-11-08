@@ -187,7 +187,8 @@ function groundPatch(kit, f, gy, biome, level, cleanliness, rng) {
   const seedZ = rng.range(0, 100);
   const noise = (x, z) => (Math.sin((x + seedX) * 0.9) * Math.cos((z + seedZ) * 0.7) + Math.sin((x - z) * 0.37 + seedX)) / 4 + 0.5;
   const pos = [];
-  const lift = 0.04;
+  // Well clear of the terrain: a few centimetres less and the two flicker when the camera is far away.
+  const lift = 0.1;
   const v = (i, j) => {
     const lx = -f.W / 2 + i * step;
     const lz = -f.D / 2 + j * step;

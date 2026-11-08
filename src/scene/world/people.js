@@ -15,6 +15,11 @@ export const KEEPER_COLORS = {
   bucket: 0x5a9ad0,
 };
 
+/** The keeper's height in metres (review of milestone 2). */
+export const KEEPER_HEIGHT = 1.8;
+/** The figure's height as modelled below, before scaling to KEEPER_HEIGHT. */
+const MODEL_HEIGHT = 1.94;
+
 const capsule = (r, len) => new THREE.CapsuleGeometry(r, len, 4, 10);
 const sphere = (r) => new THREE.SphereGeometry(r, 14, 10);
 
@@ -31,7 +36,7 @@ function part(material, name, build, pivot = [0, 0, 0]) {
 }
 
 /**
- * The keeper: about 1.75 m tall, big head, khaki shirt, green cap. Stands on y = 0, faces +z. `seated` bends the
+ * The keeper: KEEPER_HEIGHT tall, big head, khaki shirt, green cap. Stands on y = 0, faces +z. `seated` bends the
  * legs for the cart.
  * @param {{ smooth: THREE.Material }} materials
  */
@@ -79,7 +84,11 @@ export function buildKeeper(materials, { bucket = true } = {}) {
   const armR = arm(0.29);
   armL.rotation.z = -0.12;
   armR.rotation.z = 0.12;
-  group.add(body, head, legL, legR, armL, armR);
+  // The parts are modelled at MODEL_HEIGHT; an inner group scales them, so posing keeps working in model units.
+  const figure = new THREE.Group();
+  figure.scale.setScalar(KEEPER_HEIGHT / MODEL_HEIGHT);
+  figure.add(body, head, legL, legR, armL, armR);
+  group.add(figure);
   group.traverse((o) => o.isMesh && (o.castShadow = true));
   return { group, rig: { head, legL, legR, armL, armR, body } };
 }

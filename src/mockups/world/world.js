@@ -202,6 +202,12 @@ function placeCamera() {
     rig.target.z + Math.cos(rig.yaw) * Math.cos(p) * rig.dist,
   );
   camera.lookAt(rig.target);
+  // The near plane moves out with the camera, so depth precision follows the zoom (no flicker in the overview).
+  const near = THREE.MathUtils.clamp(rig.dist * 0.03, 0.3, 20);
+  if (camera.near !== near) {
+    camera.near = near;
+    camera.updateProjectionMatrix();
+  }
 }
 
 function flyTo(x, z, dist, now = false) {
