@@ -15,6 +15,8 @@ Object.assign(globalThis, {
     mockup: () => location.assign('/mockups/body-plans/'),
     /** Opens the world mockup; `query` takes its URL parameters, e.g. 'biome=polar&time=night'. */
     worldMockup: (query = '') => location.assign(`/mockups/world/${query ? `?${query}` : ''}`),
+    /** Opens the HUD and UI mockup; `query` takes its URL parameters, e.g. 'screen=shop&variant=food&device=phone'. */
+    uiMockup: (query = '') => location.assign(`/mockups/ui/${query ? `?${query}` : ''}`),
     /** A new zoo's world state for a seed (not saved). */
     world: (seed = 1, name) => createWorld({ seed, name }),
     /** A summary of the map for a seed: water, trees, rocks, path tiles of the starting layout. */
@@ -44,4 +46,4 @@ Object.assign(globalThis, {
   },
 });
 
-console.info('Pawprint Park dev helpers: __pawprint.{ mockup(), worldMockup(query), world(seed), map(seed), slots(), saveNew(seed) }, __step(frames)');
+console.info('Pawprint Park dev helpers: __pawprint.{ mockup(), worldMockup(query), uiMockup(query), world(seed), map(seed), slots(), saveNew(seed) }, __step(frames)');

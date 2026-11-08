@@ -39,6 +39,7 @@ bun run sim        # economy pacing simulation: [--v1] [--until=180] [--key=valu
 bun scripts/species-from-md.js            # regenerate src/data/species.js after editing docs/species.md
 bun scripts/screenshot.js <url> <out.png> # headless-Chrome screenshot (port 9438, CDP_PORT overrides); WIDTH, HEIGHT, WAIT env vars; .jpg saves JPEG
 bun scripts/world-mockup-shots.js [--only=a,b]   # world mockup screenshots, High and Low → docs/mockups/world/ (dev server on 5428)
+bun scripts/ui-mockup-shots.js [--only=phone,desktop] [--screens=hud,shop]   # UI mockup screenshots → docs/mockups/ui/
 ```
 
 Not yet: `bun run build:app` (Capacitor, `mobile/`), the service worker, analytics. Saves exist in the core
@@ -64,6 +65,16 @@ Not yet: `bun run build:app` (Capacitor, `mobile/`), the service worker, analyti
   `still=1`, `seed=`. Keys: ←/→ focus, 0 overview, WASD pan, Q/E rotate 90°, +/− zoom, B biome, Z size, F fence,
   U level, T time, Y weather, G grid, R roofs, L labels, X quality, H panel; drag pans, scroll or pinch zooms,
   click or tap an enclosure to focus it. Screenshots and per-tier costs: `docs/mockups/world/`.
+
+- `/mockups/ui/` (`src/mockups/ui/`): **mockup of the HUD and every UI screen**. DOM over a static view of the world
+  scene (`backdrop.js`), fake data from `fixture.js`, all text from the strings table. Screens are pure HTML builders
+  in `screens.js` (`SCREENS`, `renderScreen(ctx, id)`), tested under `bun test`; `icons.js` has the SVG icons,
+  including the colour-blind-safe warning icons (one shape per kind). URL params: `screen=<id>`, `variant=<id>`,
+  `device=fit|phone|phone-land|tablet|desktop`, `long=1` (pseudo-Czech, about a third longer), `cvd=protan|deutan|tritan|gray`,
+  `touch=0|1`, `backdrop=0`, `quality=`, `ui=0`. Keys: ←/→ screen, ↑/↓ variant, Shift+D/L/C/T/B/H for device, long
+  text, colour vision, touch, backdrop and panel. The game hotkeys work too (N, B, I, Z, T, C, K, G, M, E, Esc, 0–3).
+  Layouts follow `#stage[data-layout]`, which is set from the stage's size. Screens and screenshots:
+  `docs/mockups/ui/`.
 
 ## Key files
 
@@ -97,7 +108,9 @@ Not yet: `bun run build:app` (Capacitor, `mobile/`), the service worker, analyti
   - Storage errors come back as `{ ok: false }`, never thrown.
 - `src/core/strings.js` + `src/data/strings.js`: the strings table (all UI text). `createStrings(lang).t(key,
   params)` fills `{placeholders}` and plural forms (`count`), and falls back to English and then to the key.
-  `formatDate`, `formatTime`.
+  `createStrings(lang, table, { long: true })` stretches every string with `stretchText` (pseudo-Czech, to test
+  layouts against longer text). `formatDate`, `formatTime`. UI keys are grouped by screen (`hud.*`, `alert.*`,
+  `shop.*`, `stats.*` …). Species names still come from `species.js` until milestone 11 moves them into the table.
 - `src/data/world.js`: map, plot and start-area sizes, `ENCLOSURE_SIZES`, `BIOMES` (16, the first 8 in v1; ids
   match `species.js`), `FOOTPRINTS`. `src/data/economy.js`: `ECONOMY`, every economy number (fills up in
   milestone 6).
@@ -150,7 +163,12 @@ Not yet: `bun run build:app` (Capacitor, `mobile/`), the service worker, analyti
 - `__pawprint.world(seed, name)`: a new zoo's world state. `__pawprint.map(seed)`: a map summary (water, trees,
   rocks, path tiles). `__pawprint.slots()`: the slots and storage use on this origin. `__pawprint.saveNew(seed)`:
   save a fresh zoo into a new slot.
-- `__pawprint.worldMockup(query)`: open the world mockup with URL parameters.
+- `__pawprint.worldMockup(query)`: open the world mockup with URL parameters. `__pawprint.uiMockup(query)`: the same
+  for the UI mockup.
+- `__ui.{ state, screens, variants(id), show(screen, variant), setDevice(d), setLong(on), setCvd(c), setTouch(on),
+  anchors(), overflow(), backdrop() }` (UI mockup). `overflow()` lists elements that stick out of the stage, which
+  is a quick check for long text. `anchors()` shows where the world-anchored bits landed. `backdrop()` gives the
+  world view's draw calls and triangles.
 - `__world.{ state, rig, zoo, focusOn(stop), focusBiome(id), focusSize(s), focusWear(w), focusUpgrade(n), rotate(±1),
   setTime(t), setWeather(w), setQuality(q), perf(frames), built() }` (world mockup). `perf()` reports draw calls and
   triangles per part (terrain, trees, rocks, paths, enclosures, gate and storehouse, lamps, animals, keeper and

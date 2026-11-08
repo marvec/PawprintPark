@@ -9,7 +9,7 @@ milestone that delivers it ([milestones.md](milestones.md)). A line is ticked on
 | Milestone | Mockup | Status | Review notes |
 |---|---|---|---|
 | 2 | World: terrain, enclosures, props, keeper, weather | approved | Approved 2026-11-08. Page `/mockups/world/`; screenshots and per-tier costs in [mockups/world/](mockups/world/README.md). Review: camera, fences, wear, levels, snow, night, locked land and buildings fine. Changed after review: no lamp at a gate or against a fence; the keeper is 1.8 m; the ground no longer flickers from far away; enclosures grow by joining (PRD §5). |
-| 3 | HUD and UI | awaiting review | |
+| 3 | HUD and UI | awaiting review | Page `/mockups/ui/`; screens, URL params and screenshots in [mockups/ui/](mockups/ui/README.md). |
 | 7 | People and buildings | awaiting review | |
 
 ---
@@ -259,7 +259,7 @@ milestone that delivers it ([milestones.md](milestones.md)). A line is ticked on
 | [x] | All UI text lives in a strings table, with placeholders and plurals | 1 | `strings.test.js › strings table › fills placeholders`; `› picks plural forms by count, per language rules`; `› falls back to English, then to the key` |
 | [ ] | English and Czech at launch, every key in both | 11 | |
 | [ ] | Settings: quality (auto-picked, changeable), music and sound volume and mute, language, controls help | 11 | |
-| [ ] | Warning icons are colour-blind safe (shapes as well as colours) | 3 | |
+| [x] | Warning icons are colour-blind safe (shapes as well as colours) | 3 | `uiMockup.test.js › warning kinds each have their own shape, and critical differs from warning by fill`; `docs/mockups/ui/cvd-*-warnings-desktop.jpg` |
 | [ ] | Every action works by keyboard, mouse and touch (audit) | 11 | |
 
 ---
@@ -325,6 +325,59 @@ The milestone 2 decisions below were approved on 2026-11-08.
 - **The road in** (M2): a road leads off the map from the gate's outer side.
 - **Mockup page text** (M2): labels in the world come from the strings table. The page's own control panel is
   dev-only English, like the body-plan mockup.
+
+The milestone 3 decisions below are awaiting review.
+
+- **HUD layout** (M3):
+  - Top left: level with its XP bar, coins, stars (with a + for "Get stars") and reputation as five paws. Phones show
+    one paw with the number instead.
+  - Top right: weather, temperature, date and time, then pause/1×/2×/3×.
+  - The dock (alerts, shop, stats, Zoopedia, menu) sits bottom centre with labels on tablets and desktops, and is an
+    icon column on the right on phones.
+  - The three goals are listed top left; phones show only the first.
+  - On touch screens the joystick is bottom left and the action button bottom right. The chore ring fills around the
+    action button and over the keeper's head.
+- **Layouts** (M3): the layout follows the screen's size, not the device. Phone portrait is narrower than 600 px,
+  phone landscape is shorter than 500 px, tablet is narrower than 1280 px, and anything bigger is desktop. Touch
+  controls are on for phone and tablet layouts. Panels open as bottom sheets on phones, as right-hand panels on
+  phone landscape, tablets and desktops, and full-screen for the shop, stats, staff and Zoopedia on phones.
+- **Hotkeys** (M3):
+  - Movement (WASD and the arrows), the action (E and Space) and the camera (Q and R) are taken.
+  - The panels are N alerts, B shop, I stats, Z Zoopedia, T quick-travel ("Go to"), C photo mode, K staff, G goals
+    and M overview badges.
+  - Esc or P opens the menu, or closes what's open. 0–3 set the speed.
+  - Key hints show only without touch.
+- **Warning icons** (M3): one shape per kind.
+  - Hunger is a circle and thirst or dirty water a drop.
+  - Illness is a cross and unhappiness a heart.
+  - Dirt is a hexagon and a wearing fence a triangle.
+  - An escape is an octagon and temperature a diamond.
+  - News is a rounded square.
+
+  A warning is outlined on a pale fill. A critical one is filled solid with a double ring, so severity reads by
+  lightness as well as by hue.
+- **Long text** (M3): the long-text switch stretches every word by about 35%, adds Czech accents, and formats numbers
+  the Czech way (`18 450`). The real check comes when Czech arrives in milestone 11.
+- **Species names and pictures** (M3):
+  - Names come from `species.js` until milestone 11 moves them into the strings table.
+  - Pictures are rendered from the real animal models.
+  - Locked species show a silhouette of the same model.
+  - Species not built yet show a silhouette of a built species with the same body plan.
+  - Body plans with no builder yet (primates, snakes, fish and others) show a paw.
+- **Enclosure names** (M3): a new enclosure is called "{short biome} {number}", e.g. "Savanna 2", until the player
+  renames it.
+- **"Get stars"** (M3, PRD §21): the dialog says "Free for now: there are no payments in Pawprint Park". It sits as
+  the last shop section and also opens from the + next to the stars. The once-a-day limit and the
+  achievements question stay open.
+- **Selling an enclosure** (M3): only an empty enclosure can be sold; the dialog says so and shows the refund.
+- **Quick-travel** (M3): tapping an alert, a badge's "Go there" or a place in the "Go to" list (T) shows a "Going to …"
+  banner with Stop, and a pin on the destination seen from the overview.
+- **Statistics charts** (M3): income is blue and expenses orange. Those two, plus aqua, passed the colour-vision
+  check on the panel colour. Every chart has a legend or a title, and each value has a hover title.
+- **Slot thumbnails** (M3): the mockup draws a small map of each zoo's seed. The game will save a real screenshot
+  with each slot (`thumbnail` in the slot store).
+- **Mockup page text** (M3): the dev panel is English only, like the other mockups. Everything inside the stage comes
+  from the strings table.
 
 ## Problems
 

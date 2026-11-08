@@ -8,6 +8,7 @@ import { join, normalize } from 'node:path';
 import game from './src/index.html';
 import bodyPlans from './src/mockups/body-plans.html';
 import worldMockup from './src/mockups/world/index.html';
+import uiMockup from './src/mockups/ui/index.html';
 
 const port = Number(process.env.PORT) || 5427;
 const publicDir = join(import.meta.dir, 'public');
@@ -19,6 +20,7 @@ const server = Bun.serve({
     '/': game,
     '/mockups/body-plans/': bodyPlans,
     '/mockups/world/': worldMockup,
+    '/mockups/ui/': uiMockup,
   },
   async fetch(req) {
     const path = decodeURIComponent(new URL(req.url).pathname);
@@ -34,3 +36,4 @@ const server = Bun.serve({
 console.log(`Pawprint Park dev server: ${server.url}`);
 console.log(`Body-plan mockup:         ${server.url}mockups/body-plans/`);
 console.log(`World mockup:             ${server.url}mockups/world/`);
+console.log(`HUD and UI mockup:        ${server.url}mockups/ui/`);

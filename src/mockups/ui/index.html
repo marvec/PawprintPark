@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>HUD and UI (v1): Pawprint Park mockup</title>
+    <link rel="stylesheet" href="./ui.css" />
+    <style>
+      /* The dev panel: English only, like the other mockups' panels. */
+      #panel {
+        position: fixed;
+        z-index: 10;
+        top: 10px;
+        left: 10px;
+        width: 250px;
+        max-height: calc(100% - 20px);
+        overflow: auto;
+        background: rgb(43 36 32 / 0.92);
+        color: #f3e8d6;
+        border-radius: 14px;
+        padding: 12px;
+        font: 12.5px/1.35 system-ui, sans-serif;
+        box-shadow: 0 6px 24px rgb(0 0 0 / 0.3);
+      }
+      #panel.hidden {
+        display: none;
+      }
+      #panel h1 {
+        font-size: 14px;
+        margin: 0 0 2px;
+      }
+      #panel .sub {
+        color: #bfae94;
+        margin: 0 0 8px;
+      }
+      #panel .label {
+        margin: 10px 0 4px;
+        color: #bfae94;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        font-size: 10.5px;
+      }
+      #panel .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+      #panel button {
+        font: inherit;
+        color: #f3e8d6;
+        background: #4a3f37;
+        border: 0;
+        border-radius: 8px;
+        padding: 4px 7px;
+        cursor: pointer;
+      }
+      #panel button[aria-pressed='true'] {
+        background: #2f8a7e;
+        color: #fff;
+      }
+      #panel .keys {
+        color: #bfae94;
+        margin-top: 10px;
+      }
+      #panel .stats {
+        color: #bfae94;
+        margin-top: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Colour-vision filters (Machado et al. 2009, severity 1) for checking the warning icons. -->
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <filter id="cvd-protan"><feColorMatrix type="matrix" values="0.152 1.053 -0.205 0 0  0.115 0.786 0.099 0 0  -0.004 -0.048 1.052 0 0  0 0 0 1 0" /></filter>
+      <filter id="cvd-deutan"><feColorMatrix type="matrix" values="0.367 0.861 -0.228 0 0  0.280 0.673 0.047 0 0  -0.012 0.043 0.969 0 0  0 0 0 1 0" /></filter>
+      <filter id="cvd-tritan"><feColorMatrix type="matrix" values="1.256 -0.077 -0.179 0 0  -0.078 0.931 0.148 0 0  0.005 0.691 0.304 0 0  0 0 0 1 0" /></filter>
+    </svg>
+    <div id="stage">
+      <canvas class="backdrop" id="backdrop"></canvas>
+      <div id="ui"></div>
+    </div>
+    <aside id="panel"></aside>
+    <script type="module" src="./ui.js"></script>
+  </body>
+</html>
