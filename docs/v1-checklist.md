@@ -9,7 +9,7 @@ milestone that delivers it ([milestones.md](milestones.md)). A line is ticked on
 | Milestone | Mockup | Status | Review notes |
 |---|---|---|---|
 | 2 | World: terrain, enclosures, props, keeper, weather | approved | Approved 2026-11-08. Page `/mockups/world/`; screenshots and per-tier costs in [mockups/world/](mockups/world/README.md). Review: camera, fences, wear, levels, snow, night, locked land and buildings fine. Changed after review: no lamp at a gate or against a fence; the keeper is 1.8 m; the ground no longer flickers from far away; enclosures grow by joining (PRD §5). |
-| 3 | HUD and UI | awaiting review | Page `/mockups/ui/`; screens, URL params and screenshots in [mockups/ui/](mockups/ui/README.md). |
+| 3 | HUD and UI | approved | Approved 2026-11-09. Page `/mockups/ui/`; screens, URL params and screenshots in [mockups/ui/](mockups/ui/README.md). Review: everything looks good; no changes. |
 | 7 | People and buildings | awaiting review | |
 
 ---
@@ -326,7 +326,7 @@ The milestone 2 decisions below were approved on 2026-11-08.
 - **Mockup page text** (M2): labels in the world come from the strings table. The page's own control panel is
   dev-only English, like the body-plan mockup.
 
-The milestone 3 decisions below are awaiting review.
+The milestone 3 decisions below were approved on 2026-11-09.
 
 - **HUD layout** (M3):
   - Top left: level with its XP bar, coins, stars (with a + for "Get stars") and reputation as five paws. Phones show
